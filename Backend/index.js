@@ -1,4 +1,4 @@
-require("dotenv").config();
+const dotenv = require('dotenv');
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -9,7 +9,9 @@ const protectedRoutes = require("./routes/protectedRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const subcategoryRoutes = require("./routes/subcategoryRoutes");
 const jobRoutes = require("./routes/jobRoutes");
+const jobCategoryRoutes = require("./routes/jobCategoryRouters");
 
+dotenv.config();
 const app = express();
 
 // Middleware
@@ -29,7 +31,7 @@ app.use("/api", protectedRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/subcategories", subcategoryRoutes);
 app.use("/api/jobs", jobRoutes);
-
+app.use("/api/job-categories", jobCategoryRoutes);
 
 // Test route
 app.get("/", (req, res) => {
@@ -39,5 +41,5 @@ app.get("/", (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Backend Server running on port ${PORT}`);
 });
