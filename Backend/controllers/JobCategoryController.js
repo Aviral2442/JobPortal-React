@@ -83,3 +83,23 @@ exports.updateJobCategory = async (req, res) => {
         });
     }
 };
+
+
+// Get Job Subcategory List Controller
+exports.getJobSubCategoryList = async (req, res) => {
+    try {
+        const result = await JobCategoryService.getJobSubCategoryList(req.query);
+        res.status(200).json({
+            status: 200,
+            message: 'Job subcategory list fetched successfully',
+            jsonData: result,
+        });
+    } catch (error) {
+        console.error('Error in getJobSubCategoryList Controller:', error);
+        res.status(500).json({
+            status: 500,
+            message: 'Internal server error',
+            error: error.message,
+        });
+    }
+};
