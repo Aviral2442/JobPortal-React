@@ -35,7 +35,7 @@ exports.createJobCategory = async (req, res) => {
             return res.status(400).json({ status: false, message: 'Category image is required' });
         }
 
-        const category_image = `/uploads/JobCategoryImages/${req.file.filename}`;
+        const category_image = `/uploads/Category/${req.file.filename}`;
 
         const result = await JobCategoryService.createJobCategory({
             category_name,
@@ -58,7 +58,7 @@ exports.updateJobCategory = async (req, res) => {
         const updateData = req.body;
 
         if (req.file) {
-            updateData.category_image = `/uploads/JobCategoryImages/${req.file.filename}`;
+            updateData.category_image = `/uploads/Category/${req.file.filename}`;
         }
 
         updateData.category_updated_at = Math.floor(Date.now() / 1000);
@@ -123,7 +123,7 @@ exports.createJobSubCategory = async (req, res) => {
             return res.status(400).json({ status: false, message: 'Subcategory image is required' });
         }
 
-        const subcategory_image = `/uploads/JobCategoryImages/${req.file.filename}`;
+        const subcategory_image = `/uploads/SubCategory/${req.file.filename}`;
 
         const result = await JobCategoryService.createJobSubCategory({
             subcategory_category_id,
@@ -152,7 +152,7 @@ exports.updateJobSubCategory = async (req, res) => {
         const updateData = req.body;
 
         if (req.file) {
-            updateData.subcategory_image = `/uploads/JobSubCategoryImages/${req.file.filename}`;
+            updateData.subcategory_image = `/uploads/SubCategory/${req.file.filename}`;
         }
 
         updateData.subcategory_updated_at = Math.floor(Date.now() / 1000);
