@@ -258,7 +258,7 @@ exports.createJobSubCategory = async (data) => {
         await newSubCategory.save();
 
         return {
-            data: newSubCategory
+            newSubCategory
         };
 
     } catch (error) {
