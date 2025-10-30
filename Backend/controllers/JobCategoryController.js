@@ -1,5 +1,6 @@
 const JobCategoryService = require('../service/JobCategoryService');
 
+// Get Job Category List Controller
 exports.getJobCategoryList = async (req, res) => {
 
     try {
@@ -46,5 +47,39 @@ exports.createJobCategory = async (req, res) => {
     } catch (error) {
         console.error('Error in createJobCategory Controller:', error);
         res.status(500).json({ status: false, message: 'Internal server error' });
+    }
+};
+
+
+// Update Job Category Controller
+exports.updateJobCategory = async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+        const updateData = req.body;
+
+        if (req.file) {
+            updateData.category_image = `/uploads/JobCategoryImages/${req.file.filename}`;
+        }
+
+        updateData.category_updated_at = Math.floor(Date.now() / 1000);
+
+        const result = await JobCategoryService.updateJobCategory(categoryId, updateData);
+
+        if (result.status === 404) {
+            return res.status(404).json({ status: false, message: 'Job category not found' });
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: 'Job category updated successfully',
+            jsonData: result.updatedCategory,
+        });
+    } catch (error) {
+        console.error('Error in updateJobCategory Controller:', error);
+        res.status(500).json({
+            status: 500,
+            message: 'Internal server error',
+            error: error.message,
+        });
     }
 };

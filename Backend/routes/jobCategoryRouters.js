@@ -5,5 +5,6 @@ const JobCategoryController = require('../controllers/JobCategoryController');
 
 router.get('/get_job_category_list', JobCategoryController.getJobCategoryList);
 router.post('/create_job_category', upload.single('category_image'), JobCategoryController.createJobCategory);
+router.put('/update_job_category/:id', upload.single('category_image'), JobCategoryController.updateJobCategory);
 
 module.exports = router;

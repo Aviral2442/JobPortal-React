@@ -110,3 +110,41 @@ exports.createJobCategory = async (data) => {
         throw error;
     }
 };
+
+// Update Job Category Service
+exports.updateJobCategory = async (categoryId, data) => {
+    try {
+        const allowedFields = [
+            'category_name',
+            'category_image',
+            'category_slug',
+            'category_status',
+            'category_updated_at'
+        ];
+
+        const updateData = {};
+        allowedFields.forEach(field => {
+            if (data[field] !== undefined) {
+                updateData[field] = data[field];
+            }
+        });
+
+        if (data.category_name) {
+            updateData.category_slug = data.category_name.toLowerCase().replace(/\s+/g, '-');
+        }
+
+        const updatedCategory = await JobCategoryModel.findByIdAndUpdate(categoryId, updateData, { new: true });
+
+        if (!updatedCategory) {
+            return { status: 404, message: 'Job category not found' };
+        }
+
+        return {
+            updatedCategory
+        };
+        
+    } catch (error) {
+        console.error('Error in updateJobCategory Service:', error);
+        throw error;
+    }
+};
