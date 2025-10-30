@@ -142,3 +142,36 @@ exports.createJobSubCategory = async (req, res) => {
     }
 
 };
+
+
+// Update Job Subcategory Controller
+exports.updateJobSubCategory = async (req, res) => {
+
+    try {
+        const subcategoryId = req.params.id;
+        const updateData = req.body;
+
+        if (req.file) {
+            updateData.subcategory_image = `/uploads/JobSubCategoryImages/${req.file.filename}`;
+        }
+
+        updateData.subcategory_updated_at = Math.floor(Date.now() / 1000);
+
+        const result = await JobCategoryService.updateJobSubCategory(subcategoryId, updateData);
+
+        if (result.status === 404) {
+            return res.status(404).json({ status: false, message: 'Job subcategory not found' });
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: 'Job subcategory updated successfully',
+            jsonData: result,
+        });
+
+    } catch (error) {
+        console.error('Error in Update Job Sub Category Controller:', error);
+        res.status(500).json({ status: false, message: 'Internal server error', error: error.message });
+    }
+
+};

@@ -258,11 +258,50 @@ exports.createJobSubCategory = async (data) => {
         await newSubCategory.save();
 
         return {
-            data: newSubCategory
+            newSubCategory
         };
 
     } catch (error) {
         console.error('Error in createJobSubCategory Service:', error);
+        throw error;
+    }
+};
+
+
+// Update Job Sub Category Service
+exports.updateJobSubCategory = async (subcategoryId, data) => {
+
+    try {
+        const allowedFields = [
+            'subcategory_category_id',
+            'subcategory_name',
+            'subcategory_image',
+            'subcategory_slug',
+            'subcategory_status',
+            'subcategory_updated_at'
+        ];
+
+        const updateData = {};
+        for (const field of allowedFields) {
+            if (data[field] !== undefined) {
+                updateData[field] = data[field];
+            }
+        }
+
+        if (data.subcategory_name) {
+            updateData.subcategory_slug = data.subcategory_name.toLowerCase().replace(/\s+/g, '-');
+        }
+
+        const result = await JobSubCategoryModel.findByIdAndUpdate(subcategoryId, updateData, { new: true });
+        if (!result) {
+            return { status: 404, message: 'Subcategory not found' };
+        }
+
+        return {
+            result
+        };
+    } catch (error) {
+        console.error('Error in updateJobSubCategory Service:', error);
         throw error;
     }
 };
