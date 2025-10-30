@@ -10,7 +10,6 @@ const Error404 = lazy(() => import('@/views/error/404'));
 const Category = lazy(() => import('@/views/pages/Category')); // single category component
 const SubCategory = lazy(() => import('@/views/subcategory')); // single category component
 const AddCategory = lazy(() => import('@/views/pages/Category/components/AddCategory'));
-const EditCategory = lazy(() => import('@/views/pages/Category/components/EditCategory'));
 const AddSubCategory = lazy(() => import('@/views/pages/Category/components/AddSubCategory'));
 const EditSubCategory = lazy(() => import('@/views/pages/Category/components/EditSubCategory'));
 const Jobs = lazy(() => import('@/views/pages/Jobs')); 
@@ -58,10 +57,6 @@ const categoryRoutes = [
     path:'/admin/category/add',
     element:<AddCategory/>
   },
-  { 
-    path: '/admin/category/edit/:id',
-     element: <EditCategory />
-   }, 
   {
     path: '/admin/sub-category',
     element: <SubCategory />, // reuse Category component

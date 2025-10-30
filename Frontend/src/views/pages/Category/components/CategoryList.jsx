@@ -30,7 +30,7 @@ const CategoryList = () => {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${BASE_URL}/api/categories`);
+      const res = await axios.get(`${BASE_URL}/api/job-categories/get_job_category_list`);
       // Ensure we get an array
       const data = Array.isArray(res.data) ? res.data : res.data.data || [];
       setCategories(data);

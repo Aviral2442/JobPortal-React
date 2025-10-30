@@ -25,7 +25,7 @@ const EditSubCategory = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/api/categories`);
+        const res = await axios.get(`${BASE_URL}/api/job-categories/get_job_category_list`);
         setCategories(res.data.data || []); // <-- fix: ensure array
       } catch (err) {
         console.error(err);
