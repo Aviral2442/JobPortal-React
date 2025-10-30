@@ -10,7 +10,7 @@ exports.getJobCategoryList = async (query) => {
         toDate,
         searchFilter,
         page = 1,
-        limit = 10
+        limit = 2
     } = query;
 
     const skip = (page - 1) * limit;
@@ -230,4 +230,39 @@ exports.getJobSubCategoryList = async (query) => {
         totalPages: Math.ceil(total / limit),
         data
     };
+};
+
+
+// Create Job Sub Category Service
+exports.createJobSubCategory = async (data) => {
+    try {
+
+        const existingCheckName = await JobSubCategoryModel.findOne({ subcategory_name: data.subcategory_name });
+
+        if (existingCheckName) {
+            return { status: false, message: 'Subcategory name already exists' };
+        }
+
+        const subcategory_slug = data.subcategory_name
+            .toLowerCase()
+            .replace(/ /g, '-')
+            .replace(/[^\w-]+/g, '');
+
+        const newSubCategory = new JobSubCategoryModel({
+            subcategory_category_id: data.subcategory_category_id,
+            subcategory_name: data.subcategory_name,
+            subcategory_slug,
+            subcategory_image: data.subcategory_image
+        });
+
+        await newSubCategory.save();
+
+        return {
+            data: newSubCategory
+        };
+
+    } catch (error) {
+        console.error('Error in createJobSubCategory Service:', error);
+        throw error;
+    }
 };

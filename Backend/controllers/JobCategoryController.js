@@ -103,3 +103,42 @@ exports.getJobSubCategoryList = async (req, res) => {
         });
     }
 };
+
+
+// Create Job Subcategory Controller
+exports.createJobSubCategory = async (req, res) => {
+
+    try {
+        const { subcategory_category_id, subcategory_name } = req.body;
+
+        if (!subcategory_category_id) {
+            return res.status(400).json({ status: false, message: 'Subcategory category ID is required' });
+        }
+
+        if (!subcategory_name) {
+            return res.status(400).json({ status: false, message: 'Subcategory name is required' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ status: false, message: 'Subcategory image is required' });
+        }
+
+        const subcategory_image = `/uploads/JobSubCategoryImages/${req.file.filename}`;
+
+        const result = await JobCategoryService.createJobSubCategory({
+            subcategory_category_id,
+            subcategory_name,
+            subcategory_image,
+        });
+
+        res.status(200).json({
+            status: 200,
+            message: 'Job subcategory created successfully',
+            jsonData: result,
+        });
+    } catch (error) {
+        console.error('Error in Create Job Sub Category Controller:', error);
+        res.status(500).json({ status: false, message: 'Internal server error', error: error.message });
+    }
+
+};

@@ -8,5 +8,6 @@ router.post('/create_job_category', upload.single('category_image'), JobCategory
 router.put('/update_job_category/:id', upload.single('category_image'), JobCategoryController.updateJobCategory);
 
 router.get('/get_job_subcategory_list', JobCategoryController.getJobSubCategoryList);
+router.post('/create_job_subcategory', upload.single('subcategory_image'), JobCategoryController.createJobSubCategory);
 
 module.exports = router;
