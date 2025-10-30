@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Alert, Container, Image, Spinner } from 'react-bootstrap';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
-import ComponentCard from '../../../components/ComponentCard';
+import { useNavigate } from 'react-router-dom';
+import ComponentCard from '@/components/ComponentCard';
 
-const EditSubCategory = () => {
+const AddSubCategory = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
 
   const [subCategoryName, setSubCategoryName] = useState('');
   const [parentCategory, setParentCategory] = useState('');
@@ -17,16 +16,13 @@ const EditSubCategory = () => {
   const [variant, setVariant] = useState('success');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [loadingSubCategory, setLoadingSubCategory] = useState(true);
 
-  const BASE_URL = import.meta.env.VITE_BASE_URL;
-
-  // Fetch all parent categories
+  // Fetch all categories for the parent dropdown
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get(`${BASE_URL}/api/categories`);
-        setCategories(res.data.data || []); // <-- fix: ensure array
+        const res = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/categories`);
+        setCategories(res.data.data || []); // <-- fix: use data array from API response
       } catch (err) {
         console.error(err);
         setMessage('Failed to load categories.');
@@ -38,41 +34,22 @@ const EditSubCategory = () => {
     fetchCategories();
   }, []);
 
-  // Fetch sub-category data
-  useEffect(() => {
-    if (!id) return;
-
-    const fetchSubCategory = async () => {
-      try {
-        const res = await axios.get(`${BASE_URL}/api/subcategories/${id}`);
-        const sub = res.data;
-
-        setSubCategoryName(sub.subCategoryName);
-        setParentCategory(sub.parentCategory?._id || '');
-        setPreview(sub.subCategoryImage ? `${BASE_URL}${sub.subCategoryImage}` : null);
-      } catch (err) {
-        console.error(err);
-        setMessage('Failed to load sub-category');
-        setVariant('danger');
-      } finally {
-        setLoadingSubCategory(false);
-      }
-    };
-    fetchSubCategory();
-  }, [id]);
-
-  const handleImageChange = (e) => {
+  const handleSubCategoryImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSubCategoryImage(file);
       const reader = new FileReader();
       reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
+    } else {
+      setSubCategoryImage(null);
+      setPreview(null);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!subCategoryName.trim() || !parentCategory) {
       setMessage('Sub-category name and parent category are required.');
       setVariant('danger');
@@ -86,31 +63,34 @@ const EditSubCategory = () => {
       formData.append('parentCategory', parentCategory);
       if (subCategoryImage) formData.append('subCategoryImage', subCategoryImage);
 
-      const res = await axios.put(`${BASE_URL}/api/subcategories/${id}`, formData);
-      setMessage(`Sub-category "${res.data.subCategoryName}" updated successfully!`);
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/api/subcategories`,
+        formData
+      );
+
+      setMessage(`Sub-category "${response.data.subCategoryName}" added successfully!`);
       setVariant('success');
 
+      // Clear form
+      setSubCategoryName('');
+      setParentCategory('');
+      setSubCategoryImage(null);
+      setPreview(null);
+
+      // Redirect back to sub-category list after 1 sec
       setTimeout(() => navigate('/admin/sub-category'), 1000);
-    } catch (err) {
-      console.error(err);
-      setMessage(err.response?.data?.message || 'Error updating sub-category.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Error adding sub-category.');
       setVariant('danger');
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loadingCategories || loadingSubCategory) {
-    return (
-      <Container className="pt-4 text-center">
-        <Spinner animation="border" />
-      </Container>
-    );
-  }
-
   return (
     <Container fluid className="pt-4">
-      <ComponentCard title="Edit Sub Category" >
+      <ComponentCard title="Add Sub Category" >
         {message && <Alert variant={variant}>{message}</Alert>}
         <Form onSubmit={handleSubmit} className='py-2'>
           <Form.Group className="mb-3" controlId="subCategoryName">
@@ -130,24 +110,34 @@ const EditSubCategory = () => {
             <Form.Label>
               Parent Category <span className="text-danger">*</span>
             </Form.Label>
-            <Form.Select
-              value={parentCategory}
-              onChange={(e) => setParentCategory(e.target.value)}
-              required
-            >
-              <option value="">Select parent category</option>
-              {Array.isArray(categories) &&
-                categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.categoryName}
-                  </option>
-                ))}
-            </Form.Select>
+            {loadingCategories ? (
+              <div>
+                <Spinner animation="border" size="sm" /> Loading categories...
+              </div>
+            ) : (
+              <Form.Select
+                value={parentCategory}
+                onChange={(e) => setParentCategory(e.target.value)}
+                required
+              >
+                <option value="">Select parent category</option>
+                {Array.isArray(categories) &&
+                  categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.categoryName}
+                    </option>
+                  ))}
+              </Form.Select>
+            )}
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="subCategoryImage">
             <Form.Label>Upload Image</Form.Label>
-            <Form.Control type="file" accept="image/*" onChange={handleImageChange} />
+            <Form.Control
+              type="file"
+              accept="image/*"
+              onChange={handleSubCategoryImageChange}
+            />
           </Form.Group>
 
           {preview && (
@@ -157,13 +147,13 @@ const EditSubCategory = () => {
             </div>
           )}
 
-          <Button variant="primary" type="submit" disabled={isSubmitting}>
+          <Button variant="primary" type="submit" disabled={isSubmitting || loadingCategories}>
             {isSubmitting ? (
               <>
-                <Spinner animation="border" size="sm" /> Updating...
+                <Spinner animation="border" size="sm" /> Adding...
               </>
             ) : (
-              'Update Sub-Category'
+              'Add Sub-Category'
             )}
           </Button>
         </Form>
@@ -172,4 +162,4 @@ const EditSubCategory = () => {
   );
 };
 
-export default EditSubCategory;
+export default AddSubCategory;

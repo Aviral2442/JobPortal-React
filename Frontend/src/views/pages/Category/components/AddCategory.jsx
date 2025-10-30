@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Form, Button, Alert, Container, Image } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import ComponentCard from '../../../components/ComponentCard';
+import ComponentCard from '@/components/ComponentCard';
 
 const AddCategory = () => {
   const navigate = useNavigate();
