@@ -35,7 +35,7 @@ import axios from "@/api/axios";
 
 const tableConfig = {
   1: {
-    endpoint: "/categories/",
+    endpoint: "/job-categories/get_job_category_list",
     columns: categoryColumns,
   },
   2: {
@@ -68,7 +68,7 @@ const ExportDataWithButtons = ({
 
       switch (tabKey) {
         case 1:
-          setRows(res.data?.data || []);
+          setRows(res.data?.jsonData?.data || []);
           break;
         case 2:
           setRows(res.data || []);
@@ -97,7 +97,7 @@ const ExportDataWithButtons = ({
       case 1:
         id = rowData._id;
         name = rowData.categoryName;
-        deleteEndpoint = `/categories/${id}`;
+        deleteEndpoint = `/job-categories/${id}`;
         break;
       case 2:
         id = rowData._id;
@@ -154,10 +154,6 @@ const ExportDataWithButtons = ({
               <DropdownItem onClick={() => onEditRow(rowData)}>
                 <TbEdit className="me-2" />
                 Edit
-              </DropdownItem>
-              <DropdownItem onClick={() => handleDelete(rowData)}>
-                <TbTrash className="me-2" />
-                Delete
               </DropdownItem>
             </DropdownMenu>
           </Dropdown>
