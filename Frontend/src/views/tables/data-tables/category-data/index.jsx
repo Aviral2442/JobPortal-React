@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import ComponentCard from "@/components/ComponentCard";
 import {
   Dropdown,
@@ -32,6 +33,7 @@ import {
 
 import { createRoot } from "react-dom/client";
 import axios from "@/api/axios";
+import TablePagination from "@/components/table/TablePagination";
 
 const tableConfig = {
   1: {
@@ -39,7 +41,7 @@ const tableConfig = {
     columns: categoryColumns,
   },
   2: {
-    endpoint: "/subcategories/",
+    endpoint: "/job-categories/get_job_subcategory_list",
     columns: subCategoryColumns,
   },
 };
@@ -55,38 +57,83 @@ const ExportDataWithButtons = ({
   refreshFlag,
   onDataChanged,
 }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [paginationInfo, setPaginationInfo] = useState({
+    limit: 10,
+    page: 1,
+    total: 0,
+    totalPages: 1,
+  });
 
   const { endpoint, columns } = tableConfig[tabKey];
 
-  const fetchData = async () => {
+  // Get current page from URL or default to 1
+  const currentPage = parseInt(searchParams.get("page")) || 1;
+
+  const fetchData = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await axios.get(endpoint);
+      const res = await axios.get(`${endpoint}?page=${page}`);
       console.log("Fetched data:", res.data);
+
+      let data = [];
+      let info = {
+        limit: 10,
+        page: 1,
+        total: 0,
+        totalPages: 1,
+      };
 
       switch (tabKey) {
         case 1:
-          setRows(res.data?.jsonData?.data || []);
+          data = res.data?.jsonData?.data || [];
+          info = {
+            limit: res.data?.jsonData?.limit || 10,
+            page: res.data?.jsonData?.page || 1,
+            total: res.data?.jsonData?.total || 0,
+            totalPages: res.data?.jsonData?.totalPages || 1,
+          };
           break;
         case 2:
-          setRows(res.data || []);
+          data = res.data?.jsonData?.data || [];
+          info = {
+            limit: res.data?.jsonData?.limit || 10,
+            page: res.data?.jsonData?.page || 1,
+            total: res.data?.jsonData?.total || 0,
+            totalPages: res.data?.jsonData?.totalPages || 1,
+          };
           break;
         default:
-          setRows(res.data?.data || []);
+          data = res.data?.data || [];
+          info = {
+            limit: res.data?.limit || 10,
+            page: res.data?.page || 1,
+            total: res.data?.total || 0,
+            totalPages: res.data?.totalPages || 1,
+          };
       }
+
+      setRows(data);
+      setPaginationInfo(info);
     } catch (err) {
       console.error("Fetch error:", err);
       setRows([]);
+      setPaginationInfo({
+        limit: 10,
+        page: 1,
+        total: 0,
+        totalPages: 1,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, [tabKey, refreshFlag]);
+    fetchData(currentPage);
+  }, [tabKey, refreshFlag, currentPage]);
 
   const handleDelete = async (rowData) => {
     let id;
@@ -96,13 +143,13 @@ const ExportDataWithButtons = ({
     switch (tabKey) {
       case 1:
         id = rowData._id;
-        name = rowData.categoryName;
+        name = rowData.category_name || rowData.categoryName;
         deleteEndpoint = `/job-categories/${id}`;
         break;
       case 2:
         id = rowData._id;
         name = rowData.subCategoryName;
-        deleteEndpoint = `/subcategories/${id}`;
+        deleteEndpoint = `/job-categories/subcategories/${id}`;
         break;
       default:
         return;
@@ -117,6 +164,7 @@ const ExportDataWithButtons = ({
       await axios.delete(deleteEndpoint);
       alert("Deleted successfully!");
       onDataChanged();
+      fetchData(currentPage);
     } catch (err) {
       console.error("Delete error:", err);
       alert("Failed to delete");
@@ -130,7 +178,7 @@ const ExportDataWithButtons = ({
       orderable: false,
       searchable: false,
       render: (data, type, row, meta) => {
-        return meta.row + 1;
+        return (paginationInfo.page - 1) * paginationInfo.limit + meta.row + 1;
       },
     },
     ...columns,
@@ -155,6 +203,10 @@ const ExportDataWithButtons = ({
                 <TbEdit className="me-2" />
                 Edit
               </DropdownItem>
+              <DropdownItem onClick={() => handleDelete(rowData)}>
+                <TbTrash className="me-2" />
+                Delete
+              </DropdownItem>
             </DropdownMenu>
           </Dropdown>
         );
@@ -162,55 +214,80 @@ const ExportDataWithButtons = ({
     },
   ];
 
+  const handlePageChange = (newPageIndex) => {
+    const newPage = newPageIndex + 1;
+    setSearchParams({ page: newPage.toString() });
+  };
+
   return (
     <>
       <ComponentCard
         title={tabKey === 1 ? "Category" : "Sub Category"}
-        className="mb-4"
+        className="mb-4 pb-3"
         onAddNew={onAddNew}
       >
         {loading ? (
           <div className="text-center p-4">Loading...</div>
         ) : (
-          <DataTable
-            data={rows}
-            columns={columnsWithActions}
-            options={{
-              responsive: true,
-              layout: {
-                topStart: "buttons",
-              },
-              buttons: [
-                { extend: "copy", className: "btn btn-sm btn-secondary" },
-                { extend: "csv", className: "btn btn-sm btn-secondary" },
-                { extend: "excel", className: "btn btn-sm btn-secondary" },
-                { extend: "pdf", className: "btn btn-sm btn-secondary" },
-              ],
-              paging: true,
-              ordering: true,
-              searching: true,
-              pageLength: 10,
-              language: {
-                paginate: {
-                  first: ReactDOMServer.renderToStaticMarkup(
-                    <TbChevronsLeft />
-                  ),
-                  previous: ReactDOMServer.renderToStaticMarkup(
-                    <TbChevronLeft />
-                  ),
-                  next: ReactDOMServer.renderToStaticMarkup(<TbChevronRight />),
-                  last: ReactDOMServer.renderToStaticMarkup(
-                    <TbChevronsRight />
-                  ),
+          <>
+            <DataTable
+              data={rows}
+              columns={columnsWithActions}
+              options={{
+                responsive: true,
+                layout: {
+                  topStart: "buttons",
+                  topEnd: null,
+                  bottomStart: null,
+                  bottomEnd: null,
                 },
-              },
-            }}
-            className="table table-striped dt-responsive w-100"
-          />
+                buttons: [
+                  { extend: "copy", className: "btn btn-sm btn-secondary" },
+                  { extend: "csv", className: "btn btn-sm btn-secondary" },
+                  { extend: "excel", className: "btn btn-sm btn-secondary" },
+                  { extend: "pdf", className: "btn btn-sm btn-secondary" },
+                ],
+                paging: false,
+                info: false,
+                ordering: true,
+                searching: true,
+                language: {
+                  paginate: {
+                    first: ReactDOMServer.renderToStaticMarkup(
+                      <TbChevronsLeft />
+                    ),
+                    previous: ReactDOMServer.renderToStaticMarkup(
+                      <TbChevronLeft />
+                    ),
+                    next: ReactDOMServer.renderToStaticMarkup(<TbChevronRight />),
+                    last: ReactDOMServer.renderToStaticMarkup(
+                      <TbChevronsRight />
+                    ),
+                  },
+                },
+              }}
+              className="table table-striped dt-responsive w-100"
+            />
+            {paginationInfo.total > 0 && (
+              <TablePagination
+                currentPage={paginationInfo.page}
+                totalPages={paginationInfo.totalPages}
+                itemsName="items"
+                showInfo={true}
+                previousPage={() => handlePageChange(currentPage - 2)}
+                canPreviousPage={currentPage > 1}
+                pageCount={paginationInfo.totalPages}
+                pageIndex={currentPage - 1}
+                setPageIndex={handlePageChange}
+                nextPage={() => handlePageChange(currentPage)}
+                canNextPage={currentPage < paginationInfo.totalPages}
+              />
+            )}
+          </>
         )}
       </ComponentCard>
     </>
   );
 };
 
-export default ExportDataWithButtons;
+export default ExportDataWithButtons; 

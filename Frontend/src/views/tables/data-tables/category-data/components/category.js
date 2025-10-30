@@ -2,7 +2,6 @@ const basePath = import.meta.env.VITE_BASE_URL;
 
 export const categoryColumns = [
   { data: "_id", title: "Category ID" },
-  { data: "category_name", title: "Name" },
   {
     data: "category_image",
     title: "Image",
@@ -10,9 +9,10 @@ export const categoryColumns = [
       if (!data) return "No Image";
       // console.log("Image data:", data);
       // console.log("Base path:", basePath);
-      return `<img src="${basePath}${data}" alt="Category Image" style="width: 50px; height: auto;" />`;
+      return `<img src="${basePath}${data}" alt="Category Image" style="width: 24px; height: 24px;" />`;
     },
   },
+  { data: "category_name", title: "Name" },
   {
     data: "category_status",
     title: "Status",
@@ -28,18 +28,18 @@ export const categoryColumns = [
 
 export const subCategoryColumns = [
   { data: "_id", title: "Sub Category ID" },
-  { data: "category.categoryName", title: "Category Name", defaultContent: "N/A" },
-  { data: "subCategoryName", title: "Sub Category Name" },
   {
-    data: "subCategoryImage",
+    data: "subcategory_image",
     title: "Image",
     render: (data) => {
       if (!data) return "No Image";
-      return `<img src="${basePath}${data}" alt="Sub Category Image" style="width: 50px; height: auto;" />`;
+      return `<img src="${basePath}${data}" alt="Category Image" style="width: 24px; height: 24px;" />`;
     },
   },
+  { data: "subcategory_category_id.category_name", title: "Category Name", defaultContent: "N/A" },
+  { data: "subcategory_name", title: "Sub Category Name" },
   {
-    data: "subCategoryStatus",
+    data: "subcategory_status",
     title: "Status",
     render: (data) => {
       if (data == 0 || data === "active") {

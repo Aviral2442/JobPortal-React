@@ -10,7 +10,7 @@ exports.getJobCategoryList = async (query) => {
         toDate,
         searchFilter,
         page = 1,
-        limit = 2
+        limit = 10
     } = query;
 
     const skip = (page - 1) * limit;

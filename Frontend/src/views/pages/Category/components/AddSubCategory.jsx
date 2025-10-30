@@ -21,7 +21,7 @@ const AddSubCategory = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_BASE_URL}/api/categories`);
+        const res = await axios.get(`/job-categories/get_job_category_list`);
         setCategories(res.data.data || []); // <-- fix: use data array from API response
       } catch (err) {
         console.error(err);
