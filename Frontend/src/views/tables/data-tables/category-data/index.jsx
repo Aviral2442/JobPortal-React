@@ -78,7 +78,7 @@ const ExportDataWithButtons = ({
           setRows(res.data?.jsonData?.data || []);
           break;
         case 2:
-          setRows(res.data?.data || []);
+          setRows(res.data?.jsonData?.data || []);
           break;
         default:
           setRows(res.data?.data || []);
