@@ -217,7 +217,11 @@ exports.getJobSubCategoryList = async (query) => {
     const data = await JobSubCategoryModel.find(filter)
         .skip(skip)
         .limit(limit)
-        .sort({ subcategory_created_at: -1 });
+        .sort({ subcategory_created_at: -1 })
+        .populate({
+            path: 'subcategory_category_id',
+            select: 'category_name'
+        });
 
     return {
         total,
