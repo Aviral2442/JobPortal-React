@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardBody, CardHeader, CardTitle, Collapse } from 'react-bootstrap';
-import { TbChevronDown, TbRefresh, TbX } from 'react-icons/tb';
+import { TbChevronDown, TbRefresh, TbX, TbArrowRight } from 'react-icons/tb';
 import clsx from 'clsx';
 
 const ComponentCard = ({
@@ -9,6 +9,7 @@ const ComponentCard = ({
   isCollapsible,
   isRefreshable,
   isLink,       // Pass a custom element/content for header
+  onAddNew,     // Add this prop for "Add New" button
   className,
   bodyClassName,
   children,
@@ -31,7 +32,8 @@ const ComponentCard = ({
   const showBorder =
     (isCollapsible && !isCollapsed) || // Collapsible and expanded
     (!isCollapsible && isLink) ||       // Non-collapsible but has header content
-    (!!isLink);                         // Always show if any custom content is passed
+    (!!isLink) ||                       // Always show if any custom content is passed
+    (!!onAddNew);                       // Show border if onAddNew exists
 
   return (
     <Card className={clsx(isCollapsed && 'card-collapse', className)}>
@@ -43,14 +45,14 @@ const ComponentCard = ({
 
       {/* Header with conditional border */}
       <CardHeader
-        className="d-flex justify-content-between align-items-center"
+        className="d-flex justify-content-between align-items-center flex-wrap gap-2"
         style={{
           borderBottom: showBorder ? '1px dashed #dee2e6' : 'none',
         }}
       >
         <CardTitle className="mb-0">{title}</CardTitle>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
           {isCollapsible && (
             <span className="card-action-item" onClick={handleToggle}>
               <TbChevronDown style={{ rotate: isCollapsed ? '0deg' : '180deg' }} />
@@ -70,6 +72,16 @@ const ComponentCard = ({
             <div className="card-action-item icon-link icon-link-hover link-secondary link-underline-opacity-25 fw-semibold">
               {isLink}
             </div>
+          )}
+          {onAddNew && (
+            <button
+              type="button"
+              onClick={onAddNew}
+              className="icon-link icon-link-hover link-secondary link-underline-secondary link-underline-opacity-25 fw-semibold bg-transparent border-0 p-0"
+              style={{ textDecoration: "none" }}
+            >
+              Add New <TbArrowRight className="bi align-middle fs-lg" />
+            </button>
           )}
         </div>
       </CardHeader>

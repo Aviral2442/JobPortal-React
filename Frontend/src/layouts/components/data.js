@@ -53,14 +53,14 @@ export const menuItems = [{
   icon: HiOutlineUserGroup,
   children:[{
     key:'category',
-    label:'Category List',
+    label:'Category',
     url:'/admin/category'
 },
-{
-    key:'sub-category',
-    label:'SubCategory List',
-    url:'/admin/sub-category'
-},
+// {
+//     key:'sub-category',
+//     label:'SubCategory List',
+//     url:'/admin/sub-category'
+// },
 ]},
 {
   key:'manage-jobs',
