@@ -6,8 +6,6 @@ const connectDB = require("./connection");
 
 const authRoutes = require("./routes/authRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
-const categoryRoutes = require("./routes/categoryRoutes");
-const subcategoryRoutes = require("./routes/subcategoryRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const jobCategoryRoutes = require("./routes/jobCategoryRouters");
 
@@ -31,8 +29,6 @@ connectDB();
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", protectedRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api/subcategories", subcategoryRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/job-categories", jobCategoryRoutes);
 
