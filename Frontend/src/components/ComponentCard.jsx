@@ -45,7 +45,7 @@ const ComponentCard = ({
 
       {/* Header with conditional border */}
       <CardHeader
-        className="d-flex justify-content-between align-items-center flex-wrap gap-2"
+        className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2"
         style={{
           borderBottom: showBorder ? '1px dashed #dee2e6' : 'none',
         }}

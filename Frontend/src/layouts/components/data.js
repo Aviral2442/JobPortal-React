@@ -49,30 +49,60 @@ export const menuItems = [{
 },
 {
   key:'manage-category',
-  label:'Manage Category',
+  label:'Manage Jobs',
   icon: HiOutlineUserGroup,
   children:[{
     key:'category',
     label:'Category',
     url:'/admin/category'
 },
+{
+    key:'job',
+    label:'Job List',
+    url:'/admin/jobs'
+  },
+{
+    key:'admit-card',
+    label:'Admit Card',
+    url:'/admin/admit-card'
+  },
+{
+    key:'result',
+    label:'Results',
+    url:'/admin/result'
+  },
+{
+    key:'answer-key',
+    label:'Answer Key',
+    url:'/admin/answer-key'
+  },
+{
+    key:'documents',
+    label:'Documents',
+    url:'/admin/documents'
+  },
+{    key:'admissions',
+    label:'Admissions',
+    url:'/admin/admissions'
+},
+
 // {
 //     key:'sub-category',
 //     label:'SubCategory List',
 //     url:'/admin/sub-category'
 // },
 ]},
-{
-  key:'manage-jobs',
-  label:'Manage Jobs',
-  icon:BsBriefcaseFill,
-  children:[{
-    key:'job',
-    label:'Job List',
-    url:'/admin/jobs'
-  },{
-    key:'admit-card',
-    label:'Admit Card',
-    url:'/admin/admit-card'
-  },]},
+// {
+//   key:'manage-jobs',
+//   label:'Manage Jobs',
+//   icon:BsBriefcaseFill,
+//   children:[{
+//     key:'job',
+//     label:'Job List',
+//     url:'/admin/jobs'
+//   },{
+//     key:'admit-card',
+//     label:'Admit Card',
+//     url:'/admin/admit-card'
+//   },]},
  ];

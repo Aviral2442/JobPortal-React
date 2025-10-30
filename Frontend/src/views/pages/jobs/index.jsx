@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import JobList from "./components/JobList";
 import { Nav, NavItem, NavLink, TabContainer, TabPane } from "react-bootstrap";
-import ComponentCard from "../../components/ComponentCard";
+import ComponentCard from "@/components/ComponentCard";
 import axios from "axios";
 import { useState } from "react";
 
@@ -40,7 +40,7 @@ const Page = () => {
           isLink={
             <button
               type="button"
-              className="btn btn-link p-0"
+              className="btn btn-link p-0 text-primary"
               onClick={handleAddJob}
               disabled={creating}
             >

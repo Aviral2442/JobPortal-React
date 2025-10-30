@@ -23,6 +23,8 @@ const AddAdmitCard = lazy(() => import('@/views/admit/components/AddAdmitCard'))
 
 
 
+
+
 // login
 const authRoutes = [
   {

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Alert, Container, Image, Spinner } from 'react-bootstrap';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import axios from '@/api/axios';
 import ComponentCard from '@/components/ComponentCard';
 
-const AddSubCategory = () => {
-  const navigate = useNavigate();
+const AddSubCategory = ({ mode, data, onCancel, onDataChanged }) => {
+  const isEditMode = mode === 'edit' && data;
 
   const [subCategoryName, setSubCategoryName] = useState('');
   const [parentCategory, setParentCategory] = useState('');
@@ -17,12 +16,25 @@ const AddSubCategory = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
+  // Populate form if in edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      setSubCategoryName(data.subcategory_name || data.subCategoryName || '');
+      setParentCategory(data.subcategory_category_id || data.parentCategory || '');
+      const imageUrl = data.subcategory_image || data.subCategoryImage || '';
+      if (imageUrl) {
+        setPreview(imageUrl.startsWith('http') ? imageUrl : `${import.meta.env.VITE_BASE_URL}${imageUrl}`);
+      }
+    }
+  }, [isEditMode, data]);
+
   // Fetch all categories for the parent dropdown
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await axios.get(`/job-categories/get_job_category_list`);
-        setCategories(res.data.data || []); // <-- fix: use data array from API response
+        setCategories(res.data?.jsonData?.data || []);
+        console.log("Fetched categories in subcat:", res.data?.jsonData?.data);
       } catch (err) {
         console.error(err);
         setMessage('Failed to load categories.');
@@ -59,30 +71,42 @@ const AddSubCategory = () => {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('subCategoryName', subCategoryName);
-      formData.append('parentCategory', parentCategory);
-      if (subCategoryImage) formData.append('subCategoryImage', subCategoryImage);
+      formData.append('subcategory_name', subCategoryName);
+      formData.append('subcategory_category_id', parentCategory);
+      if (subCategoryImage) formData.append('subcategory_image', subCategoryImage); // Fixed: Changed from 'subCategoryImage' to 'subcategory_image'
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}/api/subcategories`,
-        formData
-      );
+      let response;
+      if (isEditMode) {
+        response = await axios.put(`/job-categories/update_job_subcategory/${data._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        response = await axios.post('/job-categories/create_job_subcategory', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
 
-      setMessage(`Sub-category "${response.data.subCategoryName}" added successfully!`);
+      const respPayload = response.data?.jsonData || response.data || {};
+      const subCategoryNameFromResponse = respPayload.subcategory_name || respPayload.subCategoryName || subCategoryName;
+      setMessage(`Sub-category "${subCategoryNameFromResponse}" ${isEditMode ? 'updated' : 'added'} successfully!`);
       setVariant('success');
 
-      // Clear form
-      setSubCategoryName('');
-      setParentCategory('');
-      setSubCategoryImage(null);
-      setPreview(null);
+      if (!isEditMode) {
+        setSubCategoryName('');
+        setParentCategory('');
+        setSubCategoryImage(null);
+        setPreview(null);
+      }
 
-      // Redirect back to sub-category list after 1 sec
-      setTimeout(() => navigate('/admin/sub-category'), 1000);
+      // Trigger refresh and hide form after delay
+      setTimeout(() => {
+        onDataChanged();
+        onCancel();
+      }, 1500);
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Error adding sub-category.');
+      console.error('Error details:', error.response?.data || error.message);
+      setMessage(error.response?.data?.message || error.message || `Error ${isEditMode ? 'updating' : 'adding'} sub-category.`);
       setVariant('danger');
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,8 +114,8 @@ const AddSubCategory = () => {
 
   return (
     <Container fluid className="pt-4">
-      <ComponentCard title="Add Sub Category" >
-        {message && <Alert variant={variant}>{message}</Alert>}
+      <ComponentCard title={isEditMode ? 'Edit Sub Category' : 'Add Sub Category'}>
+        {message && <Alert variant={variant} dismissible onClose={() => setMessage('')}>{message}</Alert>}
         <Form onSubmit={handleSubmit} className='py-2'>
           <Form.Group className="mb-3" controlId="subCategoryName">
             <Form.Label>
@@ -124,7 +148,7 @@ const AddSubCategory = () => {
                 {Array.isArray(categories) &&
                   categories.map((cat) => (
                     <option key={cat._id} value={cat._id}>
-                      {cat.categoryName}
+                      {cat.category_name}
                     </option>
                   ))}
               </Form.Select>
@@ -132,30 +156,43 @@ const AddSubCategory = () => {
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="subCategoryImage">
-            <Form.Label>Upload Image</Form.Label>
+            <Form.Label>Upload Image {!isEditMode && '(Optional)'}</Form.Label>
             <Form.Control
               type="file"
               accept="image/*"
               onChange={handleSubCategoryImageChange}
             />
+            {isEditMode && <Form.Text className="text-muted">
+              Leave empty to keep the current image
+            </Form.Text>}
           </Form.Group>
 
           {preview && (
             <div className="mb-3 text-start">
-              <p>Image Preview:</p>
+              <p>{isEditMode ? 'Current / New Image:' : 'Image Preview:'}</p>
               <Image src={preview} alt="Preview" thumbnail width="200" />
             </div>
           )}
 
-          <Button variant="primary" type="submit" disabled={isSubmitting || loadingCategories}>
-            {isSubmitting ? (
-              <>
-                <Spinner animation="border" size="sm" /> Adding...
-              </>
-            ) : (
-              'Add Sub-Category'
-            )}
-          </Button>
+          <div className="d-flex gap-2">
+            <Button variant="primary" type="submit" disabled={isSubmitting || loadingCategories}>
+              {isSubmitting ? (
+                <>
+                  <Spinner animation="border" size="sm" /> {isEditMode ? 'Updating...' : 'Adding...'}
+                </>
+              ) : (
+                isEditMode ? 'Update Sub-Category' : 'Add Sub-Category'
+              )}
+            </Button>
+            <Button 
+              variant="secondary" 
+              type="button" 
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+          </div>
         </Form>
       </ComponentCard>
     </Container>
