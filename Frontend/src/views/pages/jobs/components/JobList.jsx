@@ -14,6 +14,7 @@ import {
   TbChevronsRight,
   TbEye,
 } from "react-icons/tb";
+import axios from "@/api/axios";
 
 const JobList = () => {
   const [jobs, setJobs] = useState([]);
@@ -29,9 +30,9 @@ const JobList = () => {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/jobs`);
-      const data = await res.json();
-      setJobs(Array.isArray(data) ? data : data.data || []);
+      const res = await axios.get(`${BASE_URL}/api/jobs`);
+      console.log("Fetched jobs:", res.data);
+      setJobs(res.data);
     } catch (err) {
       console.error(err);
       setJobs([]);

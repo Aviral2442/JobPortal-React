@@ -38,7 +38,6 @@ export default function AddJob() {
     "links",
     "howToApply",
     "metaDetails",
-    // "files", // uncomment if files are required for completion
   ];
   const [sectionsTracking, setSectionsTracking] = useState(
     Object.fromEntries(requiredSections.map((s) => [s, false]))
@@ -403,8 +402,8 @@ export default function AddJob() {
                 <tbody>
                   {dateFields.map((field, idx) => (
                     <tr key={field.id}>
-                      <td><Form.Control {...register(`dates.${idx}.label`, { required: true })} /></td>
-                      <td><Form.Control type="date" {...register(`dates.${idx}.date`, { required: true })} /></td>
+                      <td><Form.Control className="border-0 shadow-none" {...register(`dates.${idx}.label`, { required: true })} /></td>
+                      <td><Form.Control className="border-0 shadow-none" type="date" {...register(`dates.${idx}.date`, { required: true })} /></td>
                       <td className="d-flex gap-2 justify-content-center">
                         <Button size="sm" onClick={() => appendDate({ label: "New Date", date: "" })}>+ Add</Button>
                         <Button size="sm" variant="light" onClick={() => deleteSectionItem("dates", idx)}><FaRegTrashAlt /> Remove</Button>
@@ -427,11 +426,11 @@ export default function AddJob() {
                 <tbody>
                   {feeFields.map((f, idx) => (
                     <tr key={f.id}>
-                      <td><Form.Control {...register(`fees.${idx}.category`, { required: true })} /></td>
-                      <td><Form.Control type="number" {...register(`fees.${idx}.fee`, { required: true })} /></td>
+                      <td><Form.Control className="border-0 shadow-none"  {...register(`fees.${idx}.category`, { required: true })} /></td>
+                      <td><Form.Control className="border-0 shadow-none" type="number" {...register(`fees.${idx}.fee`, { required: true })} /></td>
                       <td className="d-flex gap-2 justify-content-center">
                         <Button size="sm" onClick={() => appendFee({ category: "", fee: "" })}>+ Add</Button>
-                        <Button size="sm" variant="light" onClick={() => deleteSectionItem("fees", idx)}><FaRegTrashAlt /> Remove</Button>
+                        <Button size="sm" variant="light" onClick={() => deleteSectionItem("fees", idx)}><FaRegTrashAlt /> <span className="ps-1"> Remove</span></Button>
                       </td>
                     </tr>
                   ))}
@@ -450,7 +449,7 @@ export default function AddJob() {
                   {vacancyFields.map((v, idx) => (
                     <tr key={v.id}>
                       {["postName","total","UR","EWS","OBC","SC","ST","PwBD"].map(fld => (
-                        <td key={fld}><Form.Control type={fld==="postName"?"text":"number"} {...register(`vacancies.${idx}.${fld}`)} /></td>
+                        <td key={fld}><Form.Control className="border-0 shadow-none" type={fld==="postName"?"text":"number"} {...register(`vacancies.${idx}.${fld}`)} /></td>
                       ))}
                       <td className="d-flex gap-2 justify-content-center">
                         <Button size="sm" onClick={() => appendVacancy({ postName:"",total:0,UR:0,EWS:0,OBC:0,SC:0,ST:0,PwBD:0,extraRequirements:"" })}>+ Add</Button>
@@ -564,20 +563,20 @@ export default function AddJob() {
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-2">
-                    <Form.Label>Meta Description</Form.Label>
-                    <Form.Control as="textarea" {...register("metaDetails.description")} style={{ height: "50px" }} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
                     <Form.Label>Meta Keywords</Form.Label>
                     <Form.Control {...register("metaDetails.keywords")} />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group className="mb-2">
+                    <Form.Label>Meta Description</Form.Label>
+                    <Form.Control as="textarea" {...register("metaDetails.description")} style={{ height: "40px" }} />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-2">
                     <Form.Label>Meta Schemas</Form.Label>
-                    <Form.Control as="textarea" {...register("metaDetails.schemas")} style={{ height: "50px" }} />
+                    <Form.Control as="textarea" {...register("metaDetails.schemas")} style={{ height: "40px" }} />
                   </Form.Group>
                 </Col>
               </Row>

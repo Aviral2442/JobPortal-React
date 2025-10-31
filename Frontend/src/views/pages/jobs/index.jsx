@@ -18,6 +18,7 @@ const Page = () => {
         advtNumber: "",
       });
       const jobId = res?.data?.jobId || res?.data?._id;
+      console.log("Created draft job with ID:", res.data);
       navigate("/admin/jobs/add", { state: { jobId } });
     } catch (e) {
       navigate("/admin/jobs/add"); // fallback
