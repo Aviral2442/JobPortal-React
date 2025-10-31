@@ -16,8 +16,10 @@ const Jobs = lazy(() => import('@/views/pages/Jobs'));
 const EditJob = lazy(() => import('@/views/pages/Jobs/components/EditJob'));
 const AddJob = lazy(() => import('@/views/pages/Jobs/components/AddJob'));
 const ViewJob = lazy(() => import('@/views/pages/Jobs/components/ViewJob'));
-const AdmitCard = lazy(() => import('@/views/admit'));
-const AddAdmitCard = lazy(() => import('@/views/admit/components/AddAdmitCard'));
+const AdmitCard = lazy(() => import('@/views/pages/admit-card'));
+const AddAdmitCard = lazy(() => import('@/views/pages/admit-card/components/AddAdmitCard'));
+const Results = lazy(() => import('@/views/pages/results'));
+const AnswerKey = lazy(() => import('@/views/pages/answer-key'));
 
 
 
@@ -98,6 +100,18 @@ const admitRoutes=[{
   element:<AddAdmitCard/>
 }]; 
 
+
+const resultRoutes=[{
+  path:'/admin/result',
+  element:<Results/>
+}];
+
+
+const answerKeyRoutes=[{
+  path:'/admin/answer-key',
+  element:<AnswerKey/>
+}];
+
 // admin routes wrapped in main layout + protected route
 const adminRoutes = [
   {
@@ -115,6 +129,8 @@ const adminRoutes = [
       ...categoryRoutes,
       ...jobRoutes,
       ...admitRoutes,
+      ...resultRoutes,
+      ...answerKeyRoutes
     ],
   },
 ];
