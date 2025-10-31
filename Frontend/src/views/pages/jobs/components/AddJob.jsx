@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
+import { Formik, FieldArray } from "formik";
+import * as Yup from "yup";
 import { Form, Button, Row, Col, Card, Table, Alert, Image } from "react-bootstrap";
 import axios from "axios";
 import SnowEditor from "@/components/SnowEditor";
@@ -8,285 +9,289 @@ import ComponentCard from "@/components/ComponentCard";
 import FileUploader from "@/components/FileUploader";
 import { FaRegTrashAlt } from "react-icons/fa";
 
-// Axios with Vite baseURL
-const api = (() => {
-  const instance = axios.create();
-  instance.interceptors.request.use((config) => {
-    const baseURL = import.meta.env?.VITE_BASE_URL || "";
-    config.baseURL = baseURL;
-    return config;
-  });
-  return instance;
-})();
+// Axios instance
+const api = axios.create();
+api.interceptors.request.use((config) => {
+  config.baseURL = import.meta.env?.VITE_BASE_URL || "";
+  return config;
+});
+
+// Validation Schema
+const jobValidationSchema = Yup.object({
+  _id: Yup.string(),
+  metaDetails: Yup.object({
+    title: Yup.string().required("Meta Title is required"),
+    description: Yup.string(),
+    keywords: Yup.string(),
+    schemas: Yup.string(),
+  }),
+  postName: Yup.string().required("Post Title is required"),
+  organization: Yup.string().required("Organization is required"),
+  advtNumber: Yup.string(),
+  jobType: Yup.string().required(),
+  sector: Yup.string().required(),
+  shortDescription: Yup.string(),
+  expiryDate: Yup.date(),
+  dates: Yup.array().of(
+    Yup.object({
+      label: Yup.string().required("Date label is required"),
+      date: Yup.date().required("Date is required"),
+    })
+  ),
+  fees: Yup.array().of(
+    Yup.object({
+      category: Yup.string().required("Category is required"),
+      fee: Yup.number().required("Fee is required").min(0),
+    })
+  ),
+  vacancies: Yup.array().of(
+    Yup.object({
+      postName: Yup.string().required("Post name is required"),
+      total: Yup.number().min(0).required(),
+      UR: Yup.number().min(0),
+      EWS: Yup.number().min(0),
+      OBC: Yup.number().min(0),
+      SC: Yup.number().min(0),
+      ST: Yup.number().min(0),
+      PwBD: Yup.number().min(0),
+      extraRequirements: Yup.string(),
+    })
+  ),
+  eligibility: Yup.object({
+    qualification: Yup.string().required(),
+    finalYearEligible: Yup.string(),
+    ageMin: Yup.number().min(0),
+    ageMax: Yup.number().min(0),
+    ageRelaxation: Yup.string(),
+    gateRequired: Yup.string(),
+    gateCodes: Yup.string(),
+    extraRequirements: Yup.string(),
+  }),
+  salary: Yup.object({
+    payScale: Yup.string(),
+    inHand: Yup.number().min(0),
+    allowances: Yup.string(),
+  }),
+  selection: Yup.array().of(Yup.string()),
+  links: Yup.array().of(
+    Yup.object({
+      type: Yup.string(),
+      label: Yup.string(),
+      url: Yup.string().url("Must be a valid URL"),
+    })
+  ),
+  howToApply: Yup.string(),
+  logo: Yup.string(),
+});
+
+// Reusable Form Input Component
+const FormInput = ({ name, label, type = "text", as, value, onChange, onBlur, touched, errors, ...props }) => (
+  <Form.Group className="mb-2">
+    <Form.Label>{label}</Form.Label>
+    <Form.Control
+      name={name}
+      type={type}
+      as={as}
+      value={value}
+      onChange={onChange}
+      onBlur={onBlur}
+      isInvalid={touched && errors}
+      {...props}
+    />
+    <Form.Control.Feedback type="invalid">{errors}</Form.Control.Feedback>
+  </Form.Group>
+);
 
 export default function AddJob() {
   const navigate = useNavigate();
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [basicLogoFile, setBasicLogoFile] = useState(null);
+  const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [message, setMessage] = useState({ text: "", variant: "" });
 
-  // Required sections to complete before redirect
   const requiredSections = [
-    "basicDetails",
-    "dates",
-    "fees",
-    "vacancies",
-    "eligibility",
-    "salary",
-    "selection",
-    "links",
-    "howToApply",
-    "metaDetails",
+    "basicDetails", "dates", "fees", "vacancies",
+    "eligibility", "salary", "selection", "links",
+    "howToApply", "metaDetails"
   ];
   const [sectionsTracking, setSectionsTracking] = useState(
     Object.fromEntries(requiredSections.map((s) => [s, false]))
   );
 
-  const defaultValues = useMemo(
-    () => ({
-      _id: "",
-      metaDetails: { title: "", description: "", keywords: "", schemas: "" },
-      postName: "",
-      organization: "",
-      advtNumber: "",
-      jobType: "Permanent",
-      sector: "Central Govt",
-      jobCategory: "General",
-      jobLocation: "All India",
-      experience: "No/ Freshers",
-      modeOfExam: "Online",
-      shortDescription: "",
-      expiryDate: "",
-      dates: [
-        { label: "Application Start Date", date: "" },
-        { label: "Application End Date", date: "" },
-      ],
-      fees: [
-        { category: "General / UR", fee: "" },
-        { category: "OBC", fee: "" },
-        { category: "EWS", fee: "" },
-        { category: "SC", fee: "" },
-        { category: "ST", fee: "" },
-        { category: "PwBD", fee: "" },
-        { category: "Female", fee: "" },
-      ],
-      vacancies: [
-        {
-          postName: "",
-          total: 0,
-          UR: 0,
-          EWS: 0,
-          OBC: 0,
-          SC: 0,
-          ST: 0,
-          PwBD: 0,
-          extraRequirements: "",
-        },
-      ],
-      eligibility: {
-        qualification: "Graduate",
-        finalYearEligible: "Yes",
-        ageMin: 0,
-        ageMax: 0,
-        ageRelaxation: "",
-        gateRequired: "Yes",
-        gateCodes: "",
-        extraRequirements: "",
-      },
-      salary: { payScale: "", inHand: "", allowances: "" },
-      selection: ["Shortlisting / Written Test", "Document Verification", "Medical / DV"],
-      links: [{ type: "Apply Online", label: "Apply Online", url: "" }],
-      howToApply: "",
-      logo: "",
-    }),
-    []
-  );
+  const initialValues = useMemo(() => ({
+    _id: "",
+    metaDetails: { title: "", description: "", keywords: "", schemas: "" },
+    postName: "",
+    organization: "",
+    advtNumber: "",
+    jobType: "Permanent",
+    sector: "Central Govt",
+    shortDescription: "",
+    Advertisement_Number: "",
+    category: "",
+    subCategory: "",
+    expiryDate: "",
+    dates: [
+      { label: "Application Start Date", date: "" },
+      { label: "Application End Date", date: "" },
+    ],
+    fees: [
+      { category: "General / UR", fee: "" },
+      { category: "OBC", fee: "" },
+      { category: "SC", fee: "" },
+      { category: "ST", fee: "" },
+    ],
+    vacancies: [{
+      postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PwBD: 0, extraRequirements: ""
+    }],
+    eligibility: {
+      qualification: "Graduate",
+      finalYearEligible: "Yes",
+      ageMin: 0,
+      ageMax: 0,
+      ageRelaxation: "",
+      gateRequired: "Yes",
+      gateCodes: "",
+      extraRequirements: "",
+    },
+    salary: { payScale: "", inHand: "", allowances: "" },
+    selection: ["Shortlisting / Written Test", "Document Verification"],
+    links: [{ type: "Apply Online", label: "Apply Online", url: "" }],
+    howToApply: "",
+    logo: "",
+  }), []);
 
-  const { register, control, reset, getValues } = useForm({
-    defaultValues,
-    mode: "onChange",
-    reValidateMode: "onChange",
-  });
-
-  const jobId = useWatch({ control, name: "_id" });
-  const hasId = !!jobId;
-
-  const { fields: dateFields, append: appendDate, remove: removeDate } = useFieldArray({ control, name: "dates" });
-  const { fields: feeFields, append: appendFee, remove: removeFee } = useFieldArray({ control, name: "fees" });
-  const { fields: vacancyFields, append: appendVacancy, remove: removeVacancy } = useFieldArray({ control, name: "vacancies" });
-  const { fields: selectionFields, append: appendSelection, remove: removeSelection } = useFieldArray({ control, name: "selection" });
-  const { fields: linkFields, append: appendLink, remove: removeLink } = useFieldArray({ control, name: "links" });
-
-  // Create job on first need with minimal safe payload
-  const ensureJobId = async () => {
-    let id = getValues("_id");
-    if (id) return id;
+  const ensureJobId = async (values, setFieldValue) => {
+    if (values._id) return values._id;
 
     const minimal = {
-      postName: getValues("postName") || "Untitled Job",
-      organization: getValues("organization") || "",
-      advtNumber: getValues("advtNumber") || "",
-      metaDetails: getValues("metaDetails") || { title: "", description: "", keywords: "", schemas: "" },
+      postName: values.postName || "Untitled Job",
+      organization: values.organization || "",
+      advtNumber: values.advtNumber || "",
+      metaDetails: values.metaDetails,
     };
 
     const fd = new FormData();
     fd.append("jobData", JSON.stringify(minimal));
-    if (basicLogoFile) fd.append("logo", basicLogoFile);
+    if (logoFile) fd.append("logo", logoFile);
 
     try {
       const res = await api.post(`/api/jobs`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      id = res?.data?.jobId || res?.data?._id;
+      const id = res?.data?.jobId || res?.data?._id;
       if (id) {
-        reset({ ...getValues(), _id: id });
+        setFieldValue("_id", id);
         setMessage({ text: "Job created.", variant: "success" });
       }
       return id;
     } catch (error) {
-      console.error("Create initial job error:", error.response?.data || error.message);
       setMessage({ text: error.response?.data?.error || "Error creating job", variant: "danger" });
       return null;
     }
   };
 
-  const uploadLogo = async () => {
+  const uploadLogo = async (values, setFieldValue) => {
+    const id = await ensureJobId(values, setFieldValue);
+    if (!id || !logoFile) {
+      setMessage({ text: "Select a logo to upload.", variant: "warning" });
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("jobId", id);
+    fd.append("files", logoFile);
+
     try {
-      const id = await ensureJobId();
-      if (!id) return;
-      if (!basicLogoFile) {
-        setMessage({ text: "Select a logo to upload.", variant: "warning" });
-        return;
-      }
-      const fd = new FormData();
-      fd.append("jobId", id);
-      fd.append("files", basicLogoFile);
       await api.post(`/api/jobs/files`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-      setBasicLogoFile(null);
+      setLogoFile(null);
       setLogoPreview("");
       setMessage({ text: "Logo uploaded.", variant: "success" });
     } catch (e) {
-      console.error(e.response?.data || e.message);
       setMessage({ text: "Error uploading logo", variant: "danger" });
     }
   };
 
-  const maybeRedirectAfterSave = (state) => {
-    const allDone = requiredSections.every((s) => state[s]);
-    if (allDone) {
+  const maybeRedirect = (state) => {
+    if (requiredSections.every((s) => state[s])) {
       setTimeout(() => navigate("/admin/jobs"), 500);
     }
   };
 
-  const saveSection = async (section) => {
-    try {
-      const id = await ensureJobId();
-      if (!id) return;
+  const saveSection = async (section, values, setFieldValue) => {
+    const id = await ensureJobId(values, setFieldValue);
+    if (!id) return;
 
-      let data;
-      switch (section) {
-        case "metaDetails":
-          data = getValues("metaDetails");
-          break;
-        case "basicDetails":
-          data = {
-            postName: getValues("postName"),
-            organization: getValues("organization"),
-            advtNumber: getValues("advtNumber"),
-            jobType: getValues("jobType"),
-            sector: getValues("sector"),
-            jobCategory: getValues("jobCategory"),
-            jobLocation: getValues("jobLocation"),
-            experience: getValues("experience"),
-            modeOfExam: getValues("modeOfExam"),
-            shortDescription: getValues("shortDescription"),
-            expiryDate: getValues("expiryDate") || "",
-          };
-          break;
-        case "dates":
-          data = getValues("dates");
-          break;
-        case "fees":
-          data = getValues("fees");
-          break;
-        case "vacancies":
-          data = getValues("vacancies");
-          break;
-        case "eligibility":
-          data = getValues("eligibility");
-          break;
-        case "salary":
-          data = getValues("salary");
-          break;
-        case "selection":
-          data = getValues("selection");
-          break;
-        case "links":
-          data = getValues("links");
-          break;
-        case "howToApply":
-          data = getValues("howToApply");
-          break;
-        case "files": {
-          const fd = new FormData();
-          if (uploadedFiles.length === 0) {
-            setMessage({ text: "Select files to upload.", variant: "warning" });
-            return;
-          }
-          uploadedFiles.forEach((file) => fd.append("files", file));
-          fd.append("jobId", id);
-          await api.post(`/api/jobs/files`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-          setUploadedFiles([]);
-          setMessage({ text: "Files uploaded successfully!", variant: "success" });
+    const sectionData = {
+      metaDetails: values.metaDetails,
+      basicDetails: {
+        postName: values.postName,
+        organization: values.organization,
+        advtNumber: values.advtNumber,
+        jobType: values.jobType,
+        sector: values.sector,
+        shortDescription: values.shortDescription,
+        expiryDate: values.expiryDate || "",
+      },
+      dates: values.dates,
+      fees: values.fees,
+      vacancies: values.vacancies,
+      eligibility: values.eligibility,
+      salary: values.salary,
+      selection: values.selection,
+      links: values.links,
+      howToApply: values.howToApply,
+    }[section];
 
-          // If files are required for completion, mark them here:
-          setSectionsTracking((prev) => {
-            const updated = { ...prev, files: true };
-            maybeRedirectAfterSave(updated);
-            return updated;
-          });
-          return;
-        }
-        default:
-          return;
+    if (section === "files") {
+      if (uploadedFiles.length === 0) {
+        setMessage({ text: "Select files to upload.", variant: "warning" });
+        return;
       }
+      const fd = new FormData();
+      uploadedFiles.forEach((file) => fd.append("files", file));
+      fd.append("jobId", id);
 
-      await api.post(`/api/jobs/save-section`, { jobId: id, section, data });
+      try {
+        await api.post(`/api/jobs/files`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+        setUploadedFiles([]);
+        setMessage({ text: "Files uploaded successfully!", variant: "success" });
+        setSectionsTracking((prev) => {
+          const updated = { ...prev, files: true };
+          maybeRedirect(updated);
+          return updated;
+        });
+      } catch (error) {
+        setMessage({ text: "Error uploading files", variant: "danger" });
+      }
+      return;
+    }
+
+    try {
+      await api.post(`/api/jobs/save-section`, { jobId: id, section, data: sectionData });
       setMessage({ text: `${section} saved successfully!`, variant: "success" });
 
       if (requiredSections.includes(section)) {
         setSectionsTracking((prev) => {
           const updated = { ...prev, [section]: true };
-          maybeRedirectAfterSave(updated);
+          maybeRedirect(updated);
           return updated;
         });
       }
     } catch (error) {
-      console.error(error.response?.data || error.message);
       setMessage({ text: error.response?.data?.error || `Error saving ${section}`, variant: "danger" });
     }
   };
 
-  const deleteSectionItem = async (section, index) => {
+  const deleteSectionItem = async (section, index, values, arrayHelpers) => {
+    if (!values._id) return;
+
     try {
-      const id = await ensureJobId();
-      if (!id) return;
-
-      await api.delete(`/api/jobs/${id}/section/${section}/${index}`);
-
-      switch (section) {
-        case "dates": removeDate(index); break;
-        case "fees": removeFee(index); break;
-        case "vacancies": removeVacancy(index); break;
-        case "selection": removeSelection(index); break;
-        case "links": removeLink(index); break;
-        default: break;
-      }
+      await api.delete(`/api/jobs/${values._id}/section/${section}/${index}`);
+      arrayHelpers.remove(index);
       setMessage({ text: `${section} item deleted successfully!`, variant: "success" });
     } catch (error) {
-      console.error(error.response?.data || error.message);
-      setMessage({ text: error.response?.data?.error || `Error deleting ${section} item`, variant: "danger" });
+      setMessage({ text: `Error deleting ${section} item`, variant: "danger" });
     }
   };
 
@@ -299,295 +304,543 @@ export default function AddJob() {
           </Alert>
         )}
 
-        {/* No full submit; section saves only */}
-        <Form onSubmit={(e) => e.preventDefault()}>
-          {/* Basic Job Details */}
-          <ComponentCard className="mb-3" title="Basic Job Details" isCollapsible defaultOpen={false}>
-            <Card.Body>
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Post Title</Form.Label>
-                    <Form.Control {...register("postName")} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Short Description</Form.Label>
-                    <Form.Control as="textarea" {...register("shortDescription")} style={{ height: "50px" }} />
-                  </Form.Group>
-                </Col>
-
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Organization</Form.Label>
-                    <Form.Control {...register("organization")} />
-                  </Form.Group>
-                </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Advertisement Number</Form.Label>
-                    <Form.Control {...register("advtNumber")} />
-                  </Form.Group>
-                </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Job Type</Form.Label>
-                    <Form.Select {...register("jobType")}>
-                      <option>Permanent</option>
-                      <option>Contract</option>
-                      <option>Apprentice</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Sector</Form.Label>
-                    <Form.Select {...register("sector")}>
-                      <option>Central Govt</option>
-                      <option>State Govt</option>
-                      <option>PSU</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Expiry Date</Form.Label>
-                    <Form.Control type="date" {...register("expiryDate")} />
-                  </Form.Group>
-                </Col>
-
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Logo</Form.Label>
-                    <div className="d-flex align-items-center gap-3">
-                      <Form.Control
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          setBasicLogoFile(file || null);
-                          setLogoPreview(file ? URL.createObjectURL(file) : "");
-                        }}
+        <Formik
+          initialValues={initialValues}
+          validationSchema={jobValidationSchema}
+          onSubmit={(values) => console.log("Form submitted:", values)}
+        >
+          {({ values, errors, touched, handleChange, handleBlur, setFieldValue }) => (
+            <Form onSubmit={(e) => e.preventDefault()}>
+              {/* Basic Details */}
+              <ComponentCard className="mb-3" title="Basic Job Details" isCollapsible defaultOpen={false}>
+                <Card.Body>
+                  <Row>
+                    <Col md={4}>
+                      <FormInput
+                        name="postName"
+                        label="Post Title"
+                        value={values.postName}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        touched={touched.postName}
+                        errors={errors.postName}
                       />
-                      {logoPreview ? <Image src={logoPreview} alt="Logo preview" height={40} /> : null}
-                      <Button size="sm" variant="outline-primary" type="button" onClick={uploadLogo} disabled={!basicLogoFile}>
-                        Upload Logo
-                      </Button>
-                    </div>
-                  </Form.Group>
-                </Col>
-              </Row>
+                    </Col>
+                    <Col md={4}>
+                      <FormInput
+                        name="shortDescription"
+                        label="Short Description"
+                        as="textarea"
+                        value={values.shortDescription}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        style={{ height: "37px" }}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <FormInput
+                        name="AdvertisementNumber"
+                        label="Advertisement Number"
+                        value={values.shortDescription}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        errors={errors.postName}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <FormInput
+                        name="organization"
+                        label="Organization"
+                        value={values.organization}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        touched={touched.organization}
+                        errors={errors.organization}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-2">
+                        <Form.Label>Job Type</Form.Label>
+                        <Form.Select name="jobType" value={values.jobType} onChange={handleChange}>
+                          <option>Permanent</option>
+                          <option>Contract</option>
+                          <option>Apprentice</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-2">
+                        <Form.Label>Sector</Form.Label>
+                        <Form.Select name="sector" value={values.sector} onChange={handleChange}>
+                          <option>Central Govt</option>
+                          <option>State Govt</option>
+                          <option>PSU</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-2">
+                        <Form.Label>Category</Form.Label>
+                        <Form.Select name="category" value={values.category} onChange={handleChange}>
+                          <option>Engineering</option>
+                          <option>Medical</option>
+                          <option>Management</option>
+                          <option>Others</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-2">
+                        <Form.Label>Sub-Category</Form.Label>
+                        <Form.Select name="subCategory" value={values.subCategory} onChange={handleChange}>
+                          <option>Engineering</option>
+                          <option>Medical</option>
+                          <option>Management</option>
+                          <option>Others</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group className="mb-2">
+                        <Form.Label>Logo</Form.Label>
+                        <div className="d-flex align-items-center gap-3">
+                          <Form.Control
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              setLogoFile(file || null);
+                              setLogoPreview(file ? URL.createObjectURL(file) : "");
+                            }}
+                          />
+                          {logoPreview && <Image src={logoPreview} alt="Logo" height={40} />}
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => uploadLogo(values, setFieldValue)}
+                            disabled={!logoFile}
+                          >
+                            Upload
+                          </Button>
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("basicDetails", values, setFieldValue)}>
+                      Save Basic Details
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-              <div className="text-end mt-2">
-                <Button size="sm" onClick={() => saveSection("basicDetails")}>
-                  Save Basic Details
-                </Button>
-              </div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Important Dates */}
+              <ComponentCard className="mb-3" title="Important Dates" isCollapsible>
+                <Card.Body>
+                  <FieldArray name="dates">
+                    {(arrayHelpers) => (
+                      <Table bordered size="sm">
+                        <thead>
+                          <tr>
+                            <th>Label</th>
+                            <th>Date</th>
+                            <th className="text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.dates.map((field, idx) => (
+                            <tr key={idx}>
+                              <td>
+                                <Form.Control
+                                  className="border-0 shadow-none"
+                                  name={`dates.${idx}.label`}
+                                  value={field.label}
+                                  onChange={handleChange}
+                                />
+                              </td>
+                              <td>
+                                <Form.Control
+                                  className="border-0 shadow-none"
+                                  type="date"
+                                  name={`dates.${idx}.date`}
+                                  value={field.date}
+                                  onChange={handleChange}
+                                />
+                              </td>
+                              <td className="d-flex gap-2 justify-content-center">
+                                <Button size="sm" onClick={() => arrayHelpers.push({ label: "", date: "" })}>
+                                  +
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  onClick={() => deleteSectionItem("dates", idx, values, arrayHelpers)}
+                                >
+                                  <FaRegTrashAlt />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    )}
+                  </FieldArray>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("dates", values, setFieldValue)}>
+                      Save Dates
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Important Dates */}
-          <ComponentCard className="mb-3" title="Important Dates" isCollapsible defaultOpen>
-            <Card.Body>
-              <Table bordered size="sm">
-                <thead>
-                  <tr>
-                    <th>Label</th>
-                    <th>Date</th>
-                    <th className="text-center w-25">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dateFields.map((field, idx) => (
-                    <tr key={field.id}>
-                      <td><Form.Control className="border-0 shadow-none" {...register(`dates.${idx}.label`, { required: true })} /></td>
-                      <td><Form.Control className="border-0 shadow-none" type="date" {...register(`dates.${idx}.date`, { required: true })} /></td>
-                      <td className="d-flex gap-2 justify-content-center">
-                        <Button size="sm" onClick={() => appendDate({ label: "New Date", date: "" })}>+ Add</Button>
-                        <Button size="sm" variant="light" onClick={() => deleteSectionItem("dates", idx)}><FaRegTrashAlt /> Remove</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <div className="text-end mt-2">
-                <Button size="sm" onClick={() => saveSection("dates")}>Save Dates</Button>
-              </div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Application Fee */}
+              <ComponentCard className="mb-3" title="Application Fee" isCollapsible>
+                <Card.Body>
+                  <FieldArray name="fees">
+                    {(arrayHelpers) => (
+                      <Table bordered size="sm">
+                        <thead>
+                          <tr>
+                            <th>Category</th>
+                            <th>Fee</th>
+                            <th className="text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.fees.map((f, idx) => (
+                            <tr key={idx}>
+                              <td>
+                                <Form.Control
+                                  className="border-0 shadow-none"
+                                  name={`fees.${idx}.category`}
+                                  value={f.category}
+                                  onChange={handleChange}
+                                />
+                              </td>
+                              <td>
+                                <Form.Control
+                                  className="border-0 shadow-none"
+                                  type="number"
+                                  name={`fees.${idx}.fee`}
+                                  value={f.fee}
+                                  onChange={handleChange}
+                                />
+                              </td>
+                              <td className="d-flex gap-2 justify-content-center">
+                                <Button size="sm" onClick={() => arrayHelpers.push({ category: "", fee: "" })}>
+                                  +
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  onClick={() => deleteSectionItem("fees", idx, values, arrayHelpers)}
+                                >
+                                  <FaRegTrashAlt />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    )}
+                  </FieldArray>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("fees", values, setFieldValue)}>
+                      Save Fees
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Application Fee */}
-          <ComponentCard className="mb-3" title="Application Fee" isCollapsible defaultOpen>
-            <Card.Body>
-              <Table bordered size="sm">
-                <thead><tr><th>Category</th><th>Fee</th><th className="text-center w-25">Action</th></tr></thead>
-                <tbody>
-                  {feeFields.map((f, idx) => (
-                    <tr key={f.id}>
-                      <td><Form.Control className="border-0 shadow-none"  {...register(`fees.${idx}.category`, { required: true })} /></td>
-                      <td><Form.Control className="border-0 shadow-none" type="number" {...register(`fees.${idx}.fee`, { required: true })} /></td>
-                      <td className="d-flex gap-2 justify-content-center">
-                        <Button size="sm" onClick={() => appendFee({ category: "", fee: "" })}>+ Add</Button>
-                        <Button size="sm" variant="light" onClick={() => deleteSectionItem("fees", idx)}><FaRegTrashAlt /> <span className="ps-1"> Remove</span></Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("fees")}>Save Fees</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Vacancies */}
+              <ComponentCard className="mb-3" title="Vacancies" isCollapsible>
+                <Card.Body>
+                  <FieldArray name="vacancies">
+                    {(arrayHelpers) => (
+                      <Table bordered size="sm" responsive>
+                        <thead>
+                          <tr>
+                            <th>Post</th>
+                            <th>Total</th>
+                            <th>UR</th>
+                            <th>EWS</th>
+                            <th>OBC</th>
+                            <th>SC</th>
+                            <th>ST</th>
+                            <th>PwBD</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {values.vacancies.map((v, idx) => (
+                            <tr key={idx}>
+                              {["postName", "total", "UR", "EWS", "OBC", "SC", "ST", "PwBD"].map((fld) => (
+                                <td key={fld}>
+                                  <Form.Control
+                                    className="border-0 shadow-none"
+                                    type={fld === "postName" ? "text" : "number"}
+                                    name={`vacancies.${idx}.${fld}`}
+                                    value={v[fld]}
+                                    onChange={handleChange}
+                                  />
+                                </td>
+                              ))}
+                              <td className="d-flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => arrayHelpers.push({
+                                    postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PwBD: 0
+                                  })}
+                                >
+                                  +
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="light"
+                                  onClick={() => deleteSectionItem("vacancies", idx, values, arrayHelpers)}
+                                >
+                                  <FaRegTrashAlt />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    )}
+                  </FieldArray>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("vacancies", values, setFieldValue)}>
+                      Save Vacancies
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Vacancies */}
-          <ComponentCard className="mb-3" title="Vacancies" isCollapsible defaultOpen>
-            <Card.Body>
-              <Table bordered size="sm">
-                <thead><tr><th>Post Name</th><th>Total</th><th>UR</th><th>EWS</th><th>OBC</th><th>SC</th><th>ST</th><th>PwBD</th><th className="w-25">Action</th></tr></thead>
-                <tbody>
-                  {vacancyFields.map((v, idx) => (
-                    <tr key={v.id}>
-                      {["postName","total","UR","EWS","OBC","SC","ST","PwBD"].map(fld => (
-                        <td key={fld}><Form.Control className="border-0 shadow-none" type={fld==="postName"?"text":"number"} {...register(`vacancies.${idx}.${fld}`)} /></td>
-                      ))}
-                      <td className="d-flex gap-2 justify-content-center">
-                        <Button size="sm" onClick={() => appendVacancy({ postName:"",total:0,UR:0,EWS:0,OBC:0,SC:0,ST:0,PwBD:0,extraRequirements:"" })}>+ Add</Button>
-                        <Button size="sm" variant="light" onClick={() => deleteSectionItem("vacancies", idx)}><FaRegTrashAlt /> Remove</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <Form.Group className="mb-2">
-                <Form.Label>Extra Requirements</Form.Label>
-                <Controller control={control} name={`vacancies.0.extraRequirements`} render={({ field }) => (
-                  <SnowEditor value={field.value} onChange={field.onChange} />
-                )} />
-              </Form.Group>
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("vacancies")}>Save Vacancies</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Eligibility */}
+              <ComponentCard className="mb-3" title="Eligibility" isCollapsible>
+                <Card.Body>
+                  <Row>
+                    <Col md={4}>
+                      <FormInput
+                        name="eligibility.qualification"
+                        label="Qualification"
+                        value={values.eligibility.qualification}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <FormInput
+                        name="eligibility.ageMin"
+                        label="Min Age"
+                        type="number"
+                        value={values.eligibility.ageMin}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                    <Col md={2}>
+                      <FormInput
+                        name="eligibility.ageMax"
+                        label="Max Age"
+                        type="number"
+                        value={values.eligibility.ageMax}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                  </Row>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("eligibility", values, setFieldValue)}>
+                      Save Eligibility
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Eligibility */}
-          <ComponentCard className="mb-3" title="Eligibility" isCollapsible defaultOpen>
-            <Card.Body>
-              <Row>
-                <Col md={3}><Form.Group><Form.Label>Qualification</Form.Label><Form.Control {...register("eligibility.qualification")} /></Form.Group></Col>
-                <Col md={2}><Form.Group><Form.Label>Final Year</Form.Label><Form.Select {...register("eligibility.finalYearEligible")}><option>Yes</option><option>No</option></Form.Select></Form.Group></Col>
-                <Col md={1}><Form.Group><Form.Label>Min Age</Form.Label><Form.Control type="number" {...register("eligibility.ageMin")} /></Form.Group></Col>
-                <Col md={1}><Form.Group><Form.Label>Max Age</Form.Label><Form.Control type="number" {...register("eligibility.ageMax")} /></Form.Group></Col>
-                <Col md={2}><Form.Group><Form.Label>Age Relaxation</Form.Label><Form.Control {...register("eligibility.ageRelaxation")} /></Form.Group></Col>
-                <Col md={2}><Form.Group><Form.Label>GATE Required</Form.Label><Form.Select {...register("eligibility.gateRequired")}><option>Yes</option><option>No</option></Form.Select></Form.Group></Col>
-                <Col md={2}><Form.Group><Form.Label>GATE Codes</Form.Label><Form.Control {...register("eligibility.gateCodes")} /></Form.Group></Col>
-              </Row>
-              <Form.Group><Form.Label>Extra Requirements</Form.Label><Controller control={control} name="eligibility.extraRequirements" render={({ field }) => <SnowEditor value={field.value} onChange={field.onChange} />} /></Form.Group>
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("eligibility")}>Save Eligibility</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Salary */}
+              <ComponentCard className="mb-3" title="Salary & Benefits" isCollapsible>
+                <Card.Body>
+                  <Row className="">
+                    <Col md={4}>
+                      <FormInput
+                        name="salary.payScale"
+                        label="Pay Scale"
+                        value={values.salary.payScale}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <FormInput
+                        name="salary.inHand"
+                        label="In Hand"
+                        type="number"
+                        value={values.salary.inHand}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <FormInput
+                        name="salary.allowances"
+                        label="Allowances"
+                        value={values.salary.allowances}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                  </Row>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("salary", values, setFieldValue)}>
+                      Save Salary
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Salary & Benefits */}
-          <ComponentCard className="mb-3" title="Salary & Benefits" isCollapsible defaultOpen>
-            <Card.Body>
-              <Row>
-                <Col md={4}><Form.Group><Form.Label>Pay Scale</Form.Label><Form.Control {...register("salary.payScale")} /></Form.Group></Col>
-                <Col md={4}><Form.Group><Form.Label>In Hand</Form.Label><Form.Control type="number" {...register("salary.inHand")} /></Form.Group></Col>
-                <Col md={4}><Form.Group><Form.Label>Allowances</Form.Label><Form.Control {...register("salary.allowances")} /></Form.Group></Col>
-              </Row>
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("salary")}>Save Salary</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Selection Process */}
+              <ComponentCard className="mb-3" title="Selection Process" isCollapsible>
+                <Card.Body>
+                  <FieldArray name="selection">
+                    {(arrayHelpers) => (
+                      <>
+                        {values.selection.map((s, idx) => (
+                          <Row key={idx} className="mb-2">
+                            <Col md={9}>
+                              <Form.Control name={`selection.${idx}`} value={s} onChange={handleChange} />
+                            </Col>
+                            <Col md={3} className="d-flex gap-2">
+                              <Button size="sm" onClick={() => arrayHelpers.push("")}>
+                                + Add
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="light"
+                                onClick={() => deleteSectionItem("selection", idx, values, arrayHelpers)}
+                              >
+                                <FaRegTrashAlt />
+                              </Button>
+                            </Col>
+                          </Row>
+                        ))}
+                      </>
+                    )}
+                  </FieldArray>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("selection", values, setFieldValue)}>
+                      Save Selection
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Selection Process */}
-          <ComponentCard className="mb-3" title="Selection Process" isCollapsible defaultOpen>
-            <Card.Body>
-              {selectionFields.map((s, idx) => (
-                <Row key={s.id} className="mb-2">
-                  <Col md={9}><Form.Control {...register(`selection.${idx}`)} /></Col>
-                  <Col md={3} className="d-flex gap-2">
-                    <Button size="sm" onClick={() => appendSelection("")}>+ Add Step</Button>
-                    <Button size="sm" variant="light" onClick={() => deleteSectionItem("selection", idx)}><FaRegTrashAlt /> Remove</Button>
-                  </Col>
-                </Row>
-              ))}
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("selection")}>Save Selection</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Important Links */}
+              <ComponentCard className="mb-3" title="Important Links" isCollapsible>
+                <Card.Body>
+                  <FieldArray name="links">
+                    {(arrayHelpers) => (
+                      <>
+                        {values.links.map((l, idx) => (
+                          <Row key={idx} className="mb-2">
+                            <Col md={3}>
+                              <Form.Control
+                                name={`links.${idx}.type`}
+                                value={l.type}
+                                onChange={handleChange}
+                                placeholder="Type"
+                              />
+                            </Col>
+                            <Col md={4}>
+                              <Form.Control
+                                name={`links.${idx}.url`}
+                                value={l.url}
+                                onChange={handleChange}
+                                placeholder="URL"
+                                type="url"
+                              />
+                            </Col>
+                            <Col md={2} className="d-flex gap-2">
+                              <Button size="sm" onClick={() => arrayHelpers.push({ type: "", label: "", url: "" })}>
+                                +
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="light"
+                                onClick={() => deleteSectionItem("links", idx, values, arrayHelpers)}
+                              >
+                                <FaRegTrashAlt />
+                              </Button>
+                            </Col>
+                          </Row>
+                        ))}
+                      </>
+                    )}
+                  </FieldArray>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("links", values, setFieldValue)}>
+                      Save Links
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Important Links */}
-          <ComponentCard className="mb-3" title="Important Links" isCollapsible defaultOpen>
-            <Card.Body>
-              {linkFields.map((l, idx) => (
-                <Row key={l.id} className="mb-2">
-                  <Col md={3}><Form.Control {...register(`links.${idx}.type`)} placeholder="Type" /></Col>
-                  <Col md={3}><Form.Control {...register(`links.${idx}.label`)} placeholder="Label" /></Col>
-                  <Col md={3}><Form.Control {...register(`links.${idx}.url`)} placeholder="URL" type="url" /></Col>
-                  <Col md={3} className="d-flex gap-2 justify-content-center">
-                    <Button size="sm" onClick={() => appendLink({ type: "", label: "", url: "" })}>+ Add Link</Button>
-                    <Button size="sm" variant="light" onClick={() => deleteSectionItem("links", idx)}><FaRegTrashAlt /> Remove</Button>
-                  </Col>
-                </Row>
-              ))}
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("links")}>Save Links</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* How To Apply */}
+              <ComponentCard className="mb-3" title="How To Apply" isCollapsible>
+                <Card.Body>
+                  <SnowEditor value={values.howToApply} onChange={(v) => setFieldValue("howToApply", v)} />
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("howToApply", values, setFieldValue)}>
+                      Save How To Apply
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* How To Apply */}
-          <ComponentCard className="mb-3" title="How To Apply" isCollapsible defaultOpen>
-            <Card.Body>
-              <Controller control={control} name="howToApply" render={({ field }) => <SnowEditor value={field.value} onChange={field.onChange} />} />
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("howToApply")}>Save How To Apply</Button></div>
-            </Card.Body>
-          </ComponentCard>
+              {/* Files */}
+              <ComponentCard className="mb-3" title="Files" isCollapsible>
+                <Card.Body>
+                  <FileUploader files={uploadedFiles} setFiles={setUploadedFiles} multiple maxFileCount={12} />
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("files", values, setFieldValue)}>
+                      Upload Files
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
 
-          {/* Files */}
-          <ComponentCard className="mb-3" title="Files" isCollapsible defaultOpen>
-            <Card.Body>
-              <Form.Group>
-                <Form.Label>Upload File</Form.Label>
-                <FileUploader files={uploadedFiles} setFiles={setUploadedFiles} multiple maxFileCount={12} />
-              </Form.Group>
-              <div className="text-end mt-2"><Button size="sm" onClick={() => saveSection("files")}>Upload Files</Button></div>
-            </Card.Body>
-          </ComponentCard>
-
-          {/* SEO & Meta Info */}
-          <ComponentCard className="mb-3" title="SEO & Meta Info" isCollapsible defaultOpen>
-            <Card.Body>
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Meta Title</Form.Label>
-                    <Form.Control {...register("metaDetails.title", { required: "Meta Title is required" })} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Meta Keywords</Form.Label>
-                    <Form.Control {...register("metaDetails.keywords")} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Meta Description</Form.Label>
-                    <Form.Control as="textarea" {...register("metaDetails.description")} style={{ height: "40px" }} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Meta Schemas</Form.Label>
-                    <Form.Control as="textarea" {...register("metaDetails.schemas")} style={{ height: "40px" }} />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <div className="text-end mt-2">
-                <Button size="sm" onClick={() => saveSection("metaDetails")}>
-                  Save Meta Details
-                </Button>
-              </div>
-            </Card.Body>
-          </ComponentCard>
-        </Form>
+              {/* SEO & Meta */}
+              <ComponentCard className="mb-3" title="SEO & Meta Info" isCollapsible>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <FormInput
+                        name="metaDetails.title"
+                        label="Meta Title"
+                        value={values.metaDetails.title}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        touched={touched.metaDetails?.title}
+                        errors={errors.metaDetails?.title}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <FormInput
+                        name="metaDetails.keywords"
+                        label="Meta Keywords"
+                        value={values.metaDetails.keywords}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                  </Row>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("metaDetails", values, setFieldValue)}>
+                      Save Meta Details
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
+            </Form>
+          )}
+        </Formik>
       </Card.Body>
     </div>
   );
