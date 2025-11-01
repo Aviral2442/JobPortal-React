@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import JobList from "./components/JobList";
 import { Nav, NavItem, NavLink, TabContainer, TabPane } from "react-bootstrap";
 import ComponentCard from "@/components/ComponentCard";
@@ -9,23 +9,6 @@ const Page = () => {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
 
-  const handleAddJob = async () => {
-    try {
-      setCreating(true);
-      const res = await axios.post(`${import.meta.env.VITE_BASE_URL}/api/jobs/draft`, {
-        postName: "Untitled Job",
-        organization: "",
-        advtNumber: "",
-      });
-      const jobId = res?.data?.jobId || res?.data?._id;
-      console.log("Created draft job with ID:", res.data);
-      navigate("/admin/jobs/add", { state: { jobId } });
-    } catch (e) {
-      navigate("/admin/jobs/add"); // fallback
-    } finally {
-      setCreating(false);
-    }
-  };
 
   return (
     <div className="mt-4 pb-3">
@@ -36,17 +19,12 @@ const Page = () => {
           </NavItem>
         </Nav>
         <ComponentCard
+          title="Jobs"
           className="py-2"
-          title="List"
           isLink={
-            <button
-              type="button"
-              className="btn btn-link p-0 text-primary"
-              onClick={handleAddJob}
-              disabled={creating}
-            >
-              {creating ? "Creating..." : "+ Add Job"}
-            </button>
+            <Link to="/admin/jobs/add">
+              + Add Job
+            </Link>
           }
         >
           <TabPane eventKey="Job-List">

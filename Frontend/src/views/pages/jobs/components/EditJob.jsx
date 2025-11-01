@@ -2,22 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { Form, Button, Row, Col, Card, Table, Alert, Image } from "react-bootstrap";
-import axios from "axios";
+import axios from "@/api/axios";
 import SnowEditor from "@/components/SnowEditor";
 import ComponentCard from "@/components/ComponentCard";
 import FileUploader from "@/components/FileUploader";
 import { FaRegTrashAlt } from "react-icons/fa";
-
-// Axios with Vite baseURL
-const api = (() => {
-  const instance = axios.create();
-  instance.interceptors.request.use((config) => {
-    const baseURL = import.meta.env?.VITE_BASE_URL || "";
-    config.baseURL = baseURL;
-    return config;
-  });
-  return instance;
-})();
 
 export default function EditJob() {
   const navigate = useNavigate();
@@ -28,66 +17,67 @@ export default function EditJob() {
   const [newLogo, setNewLogo] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
 
-  const defaultValues = useMemo(
-    () => ({
-      _id: "",
-      metaDetails: { title: "", description: "", keywords: "", schemas: "" },
-      postName: "",
-      organization: "",
-      advtNumber: "",
-      jobType: "Permanent",
-      sector: "Central Govt",
-      jobCategory: "General",
-      jobLocation: "All India",
-      experience: "No/ Freshers",
-      modeOfExam: "Online",
-      shortDescription: "",
-      expiryDate: "",
-      dates: [
-        { label: "Application Start Date", date: "" },
-        { label: "Application End Date", date: "" },
-      ],
-      fees: [
-        { category: "General / UR", fee: "" },
-        { category: "OBC", fee: "" },
-        { category: "EWS", fee: "" },
-        { category: "SC", fee: "" },
-        { category: "ST", fee: "" },
-        { category: "PwBD", fee: "" },
-        { category: "Female", fee: "" },
-      ],
-      vacancies: [
-        {
-          postName: "",
-          total: 0,
-          UR: 0,
-          EWS: 0,
-          OBC: 0,
-          SC: 0,
-          ST: 0,
-          PwBD: 0,
-          extraRequirements: "",
-        },
-      ],
-      eligibility: {
-        qualification: "Graduate",
-        finalYearEligible: "Yes",
-        ageMin: 0,
-        ageMax: 0,
-        ageRelaxation: "",
-        gateRequired: "Yes",
-        gateCodes: "",
-        extraRequirements: "",
-      },
-      salary: { payScale: "", inHand: "", allowances: "" },
-      selection: ["Shortlisting / Written Test", "Document Verification", "Medical / DV"],
-      links: [{ type: "Apply Online", label: "Apply Online", url: "" }],
-      howToApply: "",
-      logo: "",
-      files: [],
-    }),
-    []
-  );
+ const initialValues = useMemo(() => ({
+    _id: "",
+    metaDetails: { job_meta_title: "", job_meta_description: "", job_meta_keywords: "", job_meta_schemas: "" },
+    job_title: "",
+    job_organization: "",
+    job_advertisement_no: "",
+    job_type: "Permanent",
+    job_sector: "Central Govt",
+    job_short_desc: "",
+    job_category: "",
+    job_sub_category: "",
+    dates: [
+      { label: "Application Start Date", date: "" },
+      { label: "Application End Date", date: "" },
+      { label: "Notification Release Date", date: "" },
+      { label: "Fee Payment Last Date", date: "" },
+      { label: "Correction Start Date", date: "" },
+      { label: "Correction End Date", date: "" },
+      { label: "Application Reopen Start Date", date: "" },
+      { label: "Application Reopen End Date", date: "" },
+      { label: "Application Last date Extended", date: "" },
+      { label: "Fee Payment Last Date Extended", date: "" },
+      { label: "Exam Date", date: "" },
+      { label: "Exam Date Extended", date: "" },
+      { label: "Admit Card Release Date", date: "" },
+      { label: "Result Declaration Date", date: "" },
+      { label: "Joining Date", date: "" },
+      { label: "Re-Exam Date", date: "" },
+      { label: "Answer Key Release Date", date: "" },
+    ],
+    fees: [
+      { category: "General", fee: "" },
+      { category: "OBC", fee: "" },
+      { category: "SC", fee: "" },
+      { category: "ST", fee: "" },
+      { category: "EWS", fee: "" },
+      { category: "PWD", fee: "" },
+      { category: "Ex-Serviceman", fee: "" },
+    ],
+    vacancies: [{
+      postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PWD: 0, ExService: 0, extraRequirements: ""
+    }],
+    eligibility: {
+      qualification: "",
+      ageMin: 0,
+      ageMax: 0,
+      experience: "",
+      extraRequirements: "",
+    },
+    salary: {
+      min: 0,
+      max: 0,
+      inHand: 0,
+      allowances: "",
+      salaryBondConditions: "",
+    },
+    selection: ["Shortlisting / Written Test", "Document Verification"],
+    links: [{ type: "Apply Online", label: "Apply Online", url: "" }],
+    howToApply: "",
+    job_logo: "",
+  }), []);
 
   const { register, control, handleSubmit, reset } = useForm({
     defaultValues,
@@ -105,7 +95,7 @@ export default function EditJob() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await api.get(`/api/jobs/${id}`);
+        const res = await axios.get(`/jobs/${id}`);
         if (cancelled) return;
         const job = res.data || {};
         // Normalize dates field to yyyy-mm-dd strings for inputs
@@ -129,7 +119,7 @@ export default function EditJob() {
       newFiles.forEach((f) => fd.append("files", f));
       if (newLogo) fd.append("logo", newLogo);
 
-      await api.put(`/api/jobs/${id}`, fd, {
+      await axios.put(`/jobs/${id}`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

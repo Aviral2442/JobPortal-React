@@ -1,5 +1,5 @@
 const path = require("path");
-const Job = require("../models/Job");
+const Job = require("../models/JobModel");
 
 const toPublicPath = (absPath) => {
   const rel = absPath.replace(/\\/g, "/");
@@ -11,62 +11,43 @@ const toPublicPath = (absPath) => {
   return `uploads/jobs/${base}`;
 };
 
-const createJobDraft = async (req, res) => {
-  try {
-    const { postName = "Untitled Job", organization = "", advtNumber = "" } = req.body || {};
-    const draft = await Job.create({
-      postName,
-      organization,
-      advtNumber,
-      metaDetails: { title: "", description: "", keywords: "", schemas: "" },
-      dates: [],
-      fees: [],
-      vacancies: [],
-      eligibility: {},
-      salary: {},
-      selection: [],
-      links: [],
-      howToApply: "",
-      files: [],
-    });
-    return res.status(201).json({ message: "Draft created", jobId: draft._id, job: draft });
-  } catch (err) {
-    console.error("Draft create error:", err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
-
+// Create Job
 const createJob = async (req, res) => {
   try {
     const jobData = JSON.parse(req.body.jobData || "{}");
 
+    // Handle file uploads
     if (req.files) {
       if (req.files.files) {
         jobData.files = req.files.files.map((f) => toPublicPath(f.path));
       }
       if (req.files.logo && req.files.logo[0]) {
-        jobData.logo = toPublicPath(req.files.logo[0].path);
+        jobData.job_logo = toPublicPath(req.files.logo[0].path);
       }
     }
 
-    jobData.metaDetails = jobData.metaDetails || { title: "", description: "", keywords: "", schemas: "" };
-    jobData.eligibility = jobData.eligibility || {};
-    jobData.howToApply = jobData.howToApply || "";
-    jobData.selection = jobData.selection || [];
-    jobData.links = jobData.links || [];
-    jobData.dates = jobData.dates || [];
-    jobData.fees = jobData.fees || [];
-    jobData.vacancies = jobData.vacancies || [];
-    jobData.salary = jobData.salary || { payScale: "", inHand: "", allowances: "" };
+    // Set defaults
+    jobData.job_status = jobData.job_status ?? 0;
+    jobData.job_posted_date = Math.floor(Date.now() / 1000);
+    jobData.job_last_updated_date = Math.floor(Date.now() / 1000);
 
     const job = await Job.create(jobData);
-    return res.status(201).json({ message: "Job created successfully", _id: job._id, job });
+    return res.status(201).json({ 
+      message: "Job created successfully", 
+      _id: job._id,
+      jobId: job._id,
+      job 
+    });
   } catch (error) {
     console.error("Create Job Error:", error);
-    return res.status(400).json({ message: "Bad Request", error: error.message });
+    return res.status(400).json({ 
+      message: "Bad Request", 
+      error: error.message 
+    });
   }
 };
 
+// Get all jobs
 const getJobs = async (req, res) => {
   try {
     const jobs = await Job.find().sort({ createdAt: -1 });
@@ -77,6 +58,7 @@ const getJobs = async (req, res) => {
   }
 };
 
+// Get job by ID
 const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -88,6 +70,7 @@ const getJobById = async (req, res) => {
   }
 };
 
+// Update job
 const updateJob = async (req, res) => {
   try {
     const { id } = req.params;
@@ -95,10 +78,16 @@ const updateJob = async (req, res) => {
 
     if (req.files) {
       if (req.files.files) jobData.files = req.files.files.map((f) => toPublicPath(f.path));
-      if (req.files.logo && req.files.logo[0]) jobData.logo = toPublicPath(req.files.logo[0].path);
+      if (req.files.logo && req.files.logo[0]) jobData.job_logo = toPublicPath(req.files.logo[0].path);
     }
 
-    const job = await Job.findByIdAndUpdate(id, jobData, { new: true, runValidators: true });
+    jobData.job_last_updated_date = Math.floor(Date.now() / 1000);
+
+    const job = await Job.findByIdAndUpdate(id, jobData, { 
+      new: true, 
+      runValidators: true 
+    });
+    
     if (!job) return res.status(404).json({ error: "Job not found" });
 
     return res.status(200).json({ message: "Job updated successfully", job });
@@ -108,47 +97,136 @@ const updateJob = async (req, res) => {
   }
 };
 
-// UPDATED: Section save with basicDetails mapped to top-level
+// Save job section with proper mapping
 const saveJobSection = async (req, res) => {
   try {
     const { jobId, section, data } = req.body;
+    
     if (!jobId || !section) {
       return res.status(400).json({ error: "jobId and section are required" });
     }
 
-    let updateDoc;
-    if (section === "basicDetails") {
-      const {
-        postName,
-        organization,
-        advtNumber,
-        jobType,
-        sector,
-        jobCategory,
-        jobLocation,
-        experience,
-        modeOfExam,
-        shortDescription,
-        expiryDate,
-      } = data || {};
+    console.log(`Saving section: ${section}`, data);
 
-      const topLevel = {};
-      if (postName !== undefined) topLevel.postName = postName;
-      if (organization !== undefined) topLevel.organization = organization;
-      if (advtNumber !== undefined) topLevel.advtNumber = advtNumber;
-      if (jobType !== undefined) topLevel.jobType = jobType;
-      if (sector !== undefined) topLevel.sector = sector;
-      if (jobCategory !== undefined) topLevel.jobCategory = jobCategory;
-      if (jobLocation !== undefined) topLevel.jobLocation = jobLocation;
-      if (experience !== undefined) topLevel.experience = experience;
-      if (modeOfExam !== undefined) topLevel.modeOfExam = modeOfExam;
-      if (shortDescription !== undefined) topLevel.shortDescription = shortDescription;
-      if (expiryDate !== undefined) topLevel.expiryDate = expiryDate;
+    let updateDoc = { $set: {} };
+    
+    switch (section) {
+      case "basicDetails":
+        updateDoc.$set = {
+          job_title: data.job_title,
+          job_short_desc: data.job_short_desc,
+          job_advertisement_no: data.job_advertisement_no,
+          job_organization: data.job_organization,
+          job_type: data.job_type,
+          job_sector: data.job_sector,
+          job_category: data.job_category,
+          job_sub_category: data.job_sub_category,
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
 
-      updateDoc = { $set: topLevel };
-    } else {
-      // For all other sections, set by section path
-      updateDoc = { $set: { [section]: data?.[section] ?? data } };
+      case "dates":
+        // Data already contains mapped date fields
+        updateDoc.$set = {
+          ...data,
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "fees":
+        updateDoc.$set = {
+          job_fees_general: data.job_fees_general ?? 0,
+          job_fees_obc: data.job_fees_obc ?? 0,
+          job_fees_sc: data.job_fees_sc ?? 0,
+          job_fees_st: data.job_fees_st ?? 0,
+          job_fees_ews: data.job_fees_ews ?? 0,
+          job_fees_pwd: data.job_fees_pwd ?? 0,
+          job_fees_ex_serviceman: data.job_fees_ex_serviceman ?? 0,
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "vacancies":
+        updateDoc.$set = {
+          job_vacancy_total: data.job_vacancy_total ?? 0,
+          job_vacancy_for_general: data.job_vacancy_for_general ?? 0,
+          job_vacancy_for_obc: data.job_vacancy_for_obc ?? 0,
+          job_vacancy_for_sc: data.job_vacancy_for_sc ?? 0,
+          job_vacancy_for_st: data.job_vacancy_for_st ?? 0,
+          job_vacancy_for_pwd: data.job_vacancy_for_pwd ?? 0,
+          job_vacancy_for_ews: data.job_vacancy_for_ews ?? 0,
+          job_vacancy_for_ex_serviceman: data.job_vacancy_for_ex_serviceman ?? 0,
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "eligibility":
+        updateDoc.$set = {
+          job_eligibility_age_min: data.job_eligibility_age_min ?? 0,
+          job_eligibility_age_max: data.job_eligibility_age_max ?? 0,
+          job_eligibility_qualifications: data.job_eligibility_qualifications ?? "",
+          job_eligibility_experience: data.job_eligibility_experience ?? "",
+          job_extra_criteria: data.job_extra_criteria ?? "",
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "salary":
+        updateDoc.$set = {
+          job_salary_min: data.job_salary_min ?? 0,
+          job_salary_max: data.job_salary_max ?? 0,
+          job_salary_inhand: data.job_salary_inhand ?? 0,
+          job_salary_allowance: data.job_salary_allowance ?? 0,
+          job_salary_bond_condition: data.job_salary_bond_condition ?? "",
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "paymentOptions":
+        updateDoc.$set = {
+          job_pmt_debit_card: data.job_pmt_debit_card ?? false,
+          job_pmt_credit_card: data.job_pmt_credit_card ?? false,
+          job_pmt_net_banking: data.job_pmt_net_banking ?? false,
+          job_pmt_upi: data.job_pmt_upi ?? false,
+          job_pmt_wallets: data.job_pmt_wallets ?? false,
+          job_pmt_e_challan: data.job_pmt_e_challan ?? false,
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "selection":
+        updateDoc.$set = {
+          selection: data.selection || [],
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "links":
+        updateDoc.$set = {
+          job_important_links: data.job_important_links || {},
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "howToApply":
+        updateDoc.$set = {
+          howToApply: data.howToApply || "",
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      case "metaDetails":
+        updateDoc.$set = {
+          job_meta_title: data.job_meta_title || "",
+          job_meta_description: data.job_meta_description || "",
+          job_meta_keywords: data.job_meta_keywords || "",
+          job_meta_schemas: data.job_meta_schemas || "",
+          job_last_updated_date: Math.floor(Date.now() / 1000),
+        };
+        break;
+
+      default:
+        return res.status(400).json({ error: `Unknown section: ${section}` });
     }
 
     const updated = await Job.findByIdAndUpdate(jobId, updateDoc, {
@@ -156,14 +234,25 @@ const saveJobSection = async (req, res) => {
       runValidators: true,
     });
 
-    if (!updated) return res.status(404).json({ error: "Job not found" });
-    return res.status(200).json({ message: "Section saved", job: updated });
+    if (!updated) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    console.log(`Section ${section} saved successfully`);
+    return res.status(200).json({ 
+      message: `${section} saved successfully`, 
+      job: updated 
+    });
   } catch (error) {
     console.error("Save Section Error:", error);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ 
+      error: "Server error", 
+      details: error.message 
+    });
   }
 };
 
+// Upload job files
 const uploadJobFiles = async (req, res) => {
   try {
     const { jobId } = req.body;
@@ -171,29 +260,37 @@ const uploadJobFiles = async (req, res) => {
 
     const filePaths = (req.files || []).map((f) => toPublicPath(f.path));
     const job = await Job.findById(jobId);
+    
     if (!job) return res.status(404).json({ error: "Job not found" });
 
     job.files = [...(job.files || []), ...filePaths];
+    job.job_last_updated_date = Math.floor(Date.now() / 1000);
     await job.save();
 
-    return res.status(200).json({ message: "Files uploaded", files: job.files, job });
+    return res.status(200).json({ 
+      message: "Files uploaded successfully", 
+      files: job.files, 
+      job 
+    });
   } catch (error) {
     console.error("Upload Files Error:", error);
     return res.status(500).json({ error: "Server error" });
   }
 };
 
+// Delete job
 const deleteJob = async (req, res) => {
   try {
     const removed = await Job.findByIdAndDelete(req.params.id);
     if (!removed) return res.status(404).json({ error: "Job not found" });
-    return res.json({ message: "Job deleted" });
+    return res.json({ message: "Job deleted successfully" });
   } catch (error) {
     console.error("Delete Job Error:", error);
     return res.status(500).json({ error: "Server error" });
   }
 };
 
+// Delete array item from job section
 const deleteJobArrayItem = async (req, res) => {
   try {
     const { id, section, index } = req.params;
@@ -211,9 +308,13 @@ const deleteJobArrayItem = async (req, res) => {
     }
 
     job[section].splice(idx, 1);
+    job.job_last_updated_date = Math.floor(Date.now() / 1000);
     await job.save();
 
-    return res.status(200).json({ message: `${section} item deleted`, job });
+    return res.status(200).json({ 
+      message: `${section} item deleted successfully`, 
+      job 
+    });
   } catch (error) {
     console.error("Delete Array Item Error:", error);
     return res.status(500).json({ error: "Server error" });
@@ -221,7 +322,6 @@ const deleteJobArrayItem = async (req, res) => {
 };
 
 module.exports = {
-  createJobDraft, // optional
   createJob,
   getJobs,
   getJobById,
