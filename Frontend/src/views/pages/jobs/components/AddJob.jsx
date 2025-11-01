@@ -2,40 +2,35 @@ import { useState, useMemo } from "react";
 import { Formik, FieldArray } from "formik";
 import * as Yup from "yup";
 import { Form, Button, Row, Col, Card, Table, Alert, Image } from "react-bootstrap";
-import axios from "axios";
 import SnowEditor from "@/components/SnowEditor";
 import { useNavigate } from "react-router-dom";
 import ComponentCard from "@/components/ComponentCard";
 import FileUploader from "@/components/FileUploader";
 import { FaRegTrashAlt } from "react-icons/fa";
+import axios from "@/api/axios";
 
-// Axios instance
-const api = axios.create();
-api.interceptors.request.use((config) => {
-  config.baseURL = import.meta.env?.VITE_BASE_URL || "";
-  return config;
-});
 
-// Validation Schema
+// Validation Schema (updated to prevent blank saves)
 const jobValidationSchema = Yup.object({
   _id: Yup.string(),
   metaDetails: Yup.object({
-    title: Yup.string().required("Meta Title is required"),
-    description: Yup.string(),
-    keywords: Yup.string(),
-    schemas: Yup.string(),
+    job_meta_title: Yup.string().required("Meta Title is required").max(60, "Max 60 characters allowed"),
+    job_meta_description: Yup.string().max(160, "Max 160 characters allowed"),
+    job_meta_keywords: Yup.string().max(10, "Max 10 keywords allowed"),
+    job_meta_schemas: Yup.string(),
   }),
-  postName: Yup.string().required("Post Title is required"),
-  organization: Yup.string().required("Organization is required"),
-  advtNumber: Yup.string(),
-  jobType: Yup.string().required(),
-  sector: Yup.string().required(),
-  shortDescription: Yup.string(),
-  expiryDate: Yup.date(),
+  job_title: Yup.string().required("Post Title is required"),
+  job_organization: Yup.string().required("Organization is required"),
+  job_advertisement_no: Yup.string().required("Advertisement Number is required"),
+  job_type: Yup.string().required("Job Type is required"),
+  job_sector: Yup.string().required("Sector is required"),
+  job_short_desc: Yup.string().required("Short Description is required"),
+  job_category: Yup.string().required("Category is required"),
+  job_sub_category: Yup.string().required("Sub Category is required"),
   dates: Yup.array().of(
     Yup.object({
       label: Yup.string().required("Date label is required"),
-      date: Yup.date().required("Date is required"),
+      date: Yup.string().required("Date is required"),
     })
   ),
   fees: Yup.array().of(
@@ -47,47 +42,65 @@ const jobValidationSchema = Yup.object({
   vacancies: Yup.array().of(
     Yup.object({
       postName: Yup.string().required("Post name is required"),
-      total: Yup.number().min(0).required(),
+      total: Yup.number().min(0).required("Total is required"),
       UR: Yup.number().min(0),
       EWS: Yup.number().min(0),
       OBC: Yup.number().min(0),
       SC: Yup.number().min(0),
       ST: Yup.number().min(0),
-      PwBD: Yup.number().min(0),
-      extraRequirements: Yup.string(),
+      PWD: Yup.number().min(0),
+      ExService: Yup.number().min(0),
     })
   ),
   eligibility: Yup.object({
-    qualification: Yup.string().required(),
-    finalYearEligible: Yup.string(),
-    ageMin: Yup.number().min(0),
-    ageMax: Yup.number().min(0),
-    ageRelaxation: Yup.string(),
-    gateRequired: Yup.string(),
-    gateCodes: Yup.string(),
+    qualification: Yup.string().required("Qualification is required"),
+    ageMin: Yup.number().min(0).required("Minimum age is required"),
+    ageMax: Yup.number().min(0).required("Maximum age is required"),
+    experience: Yup.string(),
     extraRequirements: Yup.string(),
   }),
   salary: Yup.object({
-    payScale: Yup.string(),
-    inHand: Yup.number().min(0),
+    min: Yup.number().min(0).required("Minimum salary is required"),
+    max: Yup.number().min(0).required("Maximum salary is required"),
+    inHand: Yup.number().min(0).required("In-hand salary is required"),
     allowances: Yup.string(),
+    salaryBondConditions: Yup.string(),
   }),
-  selection: Yup.array().of(Yup.string()),
+  selection: Yup.array().of(Yup.string().required("Selection step is required")),
   links: Yup.array().of(
     Yup.object({
-      type: Yup.string(),
-      label: Yup.string(),
-      url: Yup.string().url("Must be a valid URL"),
+      type: Yup.string().required("Link type is required"),
+      label: Yup.string().required("Link label is required"),
+      url: Yup.string().url("Must be a valid URL").required("URL is required"),
     })
   ),
-  howToApply: Yup.string(),
-  logo: Yup.string(),
+  howToApply: Yup.string().required("How to Apply is required"),
+  job_logo: Yup.string(),
 });
 
-// Reusable Form Input Component
-const FormInput = ({ name, label, type = "text", as, value, onChange, onBlur, touched, errors, ...props }) => (
+// Reusable Form Input Component with required indicator
+const FormInput = ({ 
+  name, 
+  label, 
+  sublabel, 
+  type = "text", 
+  as, 
+  value, 
+  onChange, 
+  onBlur, 
+  touched, 
+  errors, 
+  required = false, // Add required prop
+  ...props 
+}) => (
   <Form.Group className="mb-2">
-    <Form.Label>{label}</Form.Label>
+    <div className="d-flex justify-content-between align-items-end">
+      <Form.Label>
+        {label}
+        {required && <span className="text-danger ms-1">*</span>}
+      </Form.Label>
+      {sublabel && <div className="text-muted fs-6 pe-2">{sublabel}</div>}
+    </div>
     <Form.Control
       name={name}
       type={type}
@@ -111,7 +124,7 @@ export default function AddJob() {
 
   const requiredSections = [
     "basicDetails", "dates", "fees", "vacancies",
-    "eligibility", "salary", "selection", "links",
+    "eligibility", "salary", "paymentOptions","selection", "links",
     "howToApply", "metaDetails"
   ];
   const [sectionsTracking, setSectionsTracking] = useState(
@@ -120,72 +133,112 @@ export default function AddJob() {
 
   const initialValues = useMemo(() => ({
     _id: "",
-    metaDetails: { title: "", description: "", keywords: "", schemas: "" },
-    postName: "",
-    organization: "",
-    advtNumber: "",
-    jobType: "Permanent",
-    sector: "Central Govt",
-    shortDescription: "",
-    Advertisement_Number: "",
-    category: "",
-    subCategory: "",
-    expiryDate: "",
+    metaDetails: { job_meta_title: "", job_meta_description: "", job_meta_keywords: "", job_meta_schemas: "" },
+    job_title: "",
+    job_organization: "",
+    job_advertisement_no: "",
+    job_type: "Permanent",
+    job_sector: "Central Govt",
+    job_short_desc: "",
+    job_category: "",
+    job_sub_category: "",
     dates: [
       { label: "Application Start Date", date: "" },
       { label: "Application End Date", date: "" },
+      { label: "Notification Release Date", date: "" },
+      { label: "Fee Payment Last Date", date: "" },
+      { label: "Correction Start Date", date: "" },
+      { label: "Correction End Date", date: "" },
+      { label: "Application Reopen Start Date", date: "" },
+      { label: "Application Reopen End Date", date: "" },
+      { label: "Application Last date Extended", date: "" },
+      { label: "Fee Payment Last Date Extended", date: "" },
+      { label: "Exam Date", date: "" },
+      { label: "Exam Date Extended", date: "" },
+      { label: "Admit Card Release Date", date: "" },
+      { label: "Result Declaration Date", date: "" },
+      { label: "Joining Date", date: "" },
+      { label: "Re-Exam Date", date: "" },
+      { label: "Answer Key Release Date", date: "" },
     ],
     fees: [
-      { category: "General / UR", fee: "" },
+      { category: "General", fee: "" },
       { category: "OBC", fee: "" },
       { category: "SC", fee: "" },
       { category: "ST", fee: "" },
+      { category: "EWS", fee: "" },
+      { category: "PWD", fee: "" },
+      { category: "Ex-Serviceman", fee: "" },
     ],
     vacancies: [{
-      postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PwBD: 0, extraRequirements: ""
+      postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PWD: 0, ExService: 0, extraRequirements: ""
     }],
     eligibility: {
-      qualification: "Graduate",
-      finalYearEligible: "Yes",
+      qualification: "",
       ageMin: 0,
       ageMax: 0,
-      ageRelaxation: "",
-      gateRequired: "Yes",
-      gateCodes: "",
+      experience: "",
       extraRequirements: "",
     },
-    salary: { payScale: "", inHand: "", allowances: "" },
+    salary: {
+      min: 0,
+      max: 0,
+      inHand: 0,
+      allowances: "",
+      salaryBondConditions: "",
+    },
+    paymentOptions: {
+      debitCard: false,
+      creditCard: false,
+      netBanking: false,
+      upi: false,
+      wallets: false,
+      eChallen: false
+    },
     selection: ["Shortlisting / Written Test", "Document Verification"],
     links: [{ type: "Apply Online", label: "Apply Online", url: "" }],
     howToApply: "",
-    logo: "",
+    job_logo: "",
   }), []);
 
   const ensureJobId = async (values, setFieldValue) => {
     if (values._id) return values._id;
 
+    // Validate required fields before creating job
+    if (!values.job_title || !values.job_organization || !values.job_short_desc) {
+      setMessage({ text: "Please fill required fields: Title, Organization, and Short Description", variant: "danger" });
+      return null;
+    }
+
     const minimal = {
-      postName: values.postName || "Untitled Job",
-      organization: values.organization || "",
-      advtNumber: values.advtNumber || "",
-      metaDetails: values.metaDetails,
+      job_title: values.job_title.trim(),
+      job_short_desc: values.job_short_desc.trim(),
+      job_advertisement_no: values.job_advertisement_no.trim(),
+      job_organization: values.job_organization.trim(),
+      job_type: values.job_type,
+      job_sector: values.job_sector,
+      job_category: values.job_category || "",
+      job_sub_category: values.job_sub_category || "",
+      job_status: 0, // Active by default
+      job_vacancy_total: 0, // Initialize with 0
     };
 
     const fd = new FormData();
     fd.append("jobData", JSON.stringify(minimal));
-    if (logoFile) fd.append("logo", logoFile);
 
     try {
-      const res = await api.post(`/api/jobs`, fd, {
+      const res = await axios.post(`/jobs`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const id = res?.data?.jobId || res?.data?._id;
+      console.log("Created job with ID:", res.data);
       if (id) {
         setFieldValue("_id", id);
-        setMessage({ text: "Job created.", variant: "success" });
+        setMessage({ text: "Job created successfully.", variant: "success" });
       }
       return id;
     } catch (error) {
+      console.error("Error creating job:", error);
       setMessage({ text: error.response?.data?.error || "Error creating job", variant: "danger" });
       return null;
     }
@@ -201,9 +254,11 @@ export default function AddJob() {
     const fd = new FormData();
     fd.append("jobId", id);
     fd.append("files", logoFile);
-
+    // also set model field if needed
     try {
-      await api.post(`/api/jobs/files`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      await axios.post(`/jobs/files`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      // update form field for model-compatible name
+      setFieldValue("job_logo", logoFile.name || "");
       setLogoFile(null);
       setLogoPreview("");
       setMessage({ text: "Logo uploaded.", variant: "success" });
@@ -222,53 +277,254 @@ export default function AddJob() {
     const id = await ensureJobId(values, setFieldValue);
     if (!id) return;
 
-    const sectionData = {
-      metaDetails: values.metaDetails,
-      basicDetails: {
-        postName: values.postName,
-        organization: values.organization,
-        advtNumber: values.advtNumber,
-        jobType: values.jobType,
-        sector: values.sector,
-        shortDescription: values.shortDescription,
-        expiryDate: values.expiryDate || "",
-      },
-      dates: values.dates,
-      fees: values.fees,
-      vacancies: values.vacancies,
-      eligibility: values.eligibility,
-      salary: values.salary,
-      selection: values.selection,
-      links: values.links,
-      howToApply: values.howToApply,
-    }[section];
+    let sectionData = null;
 
-    if (section === "files") {
-      if (uploadedFiles.length === 0) {
-        setMessage({ text: "Select files to upload.", variant: "warning" });
+    if (section === "basicDetails") {
+      // Validate basic details
+      if (!values.job_title || !values.job_organization || !values.job_short_desc) {
+        setMessage({ text: "Please fill all required fields in Basic Details", variant: "danger" });
         return;
       }
+
+      sectionData = {
+        job_title: values.job_title.trim(),
+        job_short_desc: values.job_short_desc.trim(),
+        job_advertisement_no: values.job_advertisement_no.trim(),
+        job_organization: values.job_organization.trim(),
+        job_type: values.job_type,
+        job_sector: values.job_sector,
+        job_category: values.job_category,
+        job_sub_category: values.job_sub_category,
+      };
+    } else if (section === "dates") {
+      // Filter out empty dates and validate
+      const validDates = (values.dates || []).filter(d => d.label && d.date);
+
+      if (validDates.length === 0) {
+        setMessage({ text: "Please add at least one date", variant: "warning" });
+        return;
+      }
+
+      // Map dates to model fields
+      const dateMapping = {
+        "Application Start Date": "job_start_date",
+        "Application End Date": "job_end_date",
+        "Notification Release Date": "job_notification_release_date",
+        "Fee Payment Last Date": "job_fees_pmt_last_date",
+        "Correction Start Date": "job_correction_start_date",
+        "Correction End Date": "job_correction_end_date",
+        "Application Reopen Start Date": "job_reopen_start_date",
+        "Application Reopen End Date": "job_reopen_end_date",
+        "Application Last date Extended": "job_last_date_extended",
+        "Fee Payment Last Date Extended": "job_fees_pmt_last_date_extended",
+        "Exam Date": "job_exam_date",
+        "Exam Date Extended": "job_exam_date_extended",
+        "Admit Card Release Date": "job_admit_card_release_date",
+        "Result Declaration Date": "job_result_declaration_date",
+        "Joining Date": "job_joining_date",
+        "Re-Exam Date": "job_re_exam_date",
+        "Answer Key Release Date": "job_answer_key_release_date",
+      };
+
+      sectionData = {};
+      validDates.forEach((d) => {
+        const fieldName = dateMapping[d.label];
+        if (fieldName && d.date) {
+          sectionData[fieldName] = Math.floor(new Date(d.date).getTime() / 1000);
+        }
+      });
+
+    } else if (section === "fees") {
+      // Filter out empty fees
+      const validFees = (values.fees || []).filter(f => f.category && f.fee !== "" && f.fee !== null);
+
+      if (validFees.length === 0) {
+        setMessage({ text: "Please add at least one fee entry", variant: "warning" });
+        return;
+      }
+
+      sectionData = {};
+      validFees.forEach((f) => {
+        const key = (f.category || "").toLowerCase().trim();
+        const feeValue = Number(f.fee) || 0;
+
+        if (key.includes("general") || key.includes("ur")) {
+          sectionData.job_fees_general = feeValue;
+        } else if (key.includes("obc")) {
+          sectionData.job_fees_obc = feeValue;
+        } else if (key.includes("sc")) {
+          sectionData.job_fees_sc = feeValue;
+        } else if (key.includes("st")) {
+          sectionData.job_fees_st = feeValue;
+        } else if (key.includes("ews")) {
+          sectionData.job_fees_ews = feeValue;
+        } else if (key.includes("pwd")) {
+          sectionData.job_fees_pwd = feeValue;
+        } else if (key.includes("ex-serviceman") || key.includes("exservice")) {
+          sectionData.job_fees_ex_serviceman = feeValue;
+        }
+      });
+
+    } else if (section === "vacancies") {
+      // Validate vacancies
+      const vacancy = values.vacancies?.[0];
+      if (!vacancy || !vacancy.postName || vacancy.total === 0) {
+        setMessage({ text: "Please fill vacancy details", variant: "warning" });
+        return;
+      }
+
+      sectionData = {
+        job_vacancy_total: Number(vacancy.total) || 0,
+        job_vacancy_for_general: Number(vacancy.UR) || 0,
+        job_vacancy_for_obc: Number(vacancy.OBC) || 0,
+        job_vacancy_for_sc: Number(vacancy.SC) || 0,
+        job_vacancy_for_st: Number(vacancy.ST) || 0,
+        job_vacancy_for_pwd: Number(vacancy.PWD) || 0,
+        job_vacancy_for_ews: Number(vacancy.EWS) || 0,
+        job_vacancy_for_ex_serviceman: Number(vacancy.ExService) || 0,
+      };
+
+    } else if (section === "eligibility") {
+      // Validate eligibility
+      if (!values.eligibility?.qualification || !values.eligibility?.ageMin || !values.eligibility?.ageMax) {
+        setMessage({ text: "Please fill all required eligibility fields", variant: "warning" });
+        return;
+      }
+
+      sectionData = {
+        job_eligibility_age_min: Number(values.eligibility.ageMin) || 0,
+        job_eligibility_age_max: Number(values.eligibility.ageMax) || 0,
+        job_eligibility_qualifications: values.eligibility.qualification.trim(),
+        job_eligibility_experience: values.eligibility.experience?.trim() || "",
+        job_extra_criteria: values.eligibility.extraRequirements?.trim() || "",
+      };
+
+    } else if (section === "salary") {
+      // Validate salary
+      if (!values.salary?.min || !values.salary?.max || !values.salary?.inHand) {
+        setMessage({ text: "Please fill all required salary fields", variant: "warning" });
+        return;
+      }
+
+      sectionData = {
+        job_salary_min: Number(values.salary.min) || 0,
+        job_salary_max: Number(values.salary.max) || 0,
+        job_salary_inhand: Number(values.salary.inHand) || 0,
+        job_salary_allowance: Number(values.salary.allowances) || 0,
+        job_salary_bond_condition: values.salary.salaryBondConditions?.trim() || "",
+      };
+
+    } else if (section === "paymentOptions") {
+      // NEW: Payment Options section
+      sectionData = {
+        job_pmt_debit_card: values.paymentOptions.debitCard || false,
+        job_pmt_credit_card: values.paymentOptions.creditCard || false,
+        job_pmt_net_banking: values.paymentOptions.netBanking || false,
+        job_pmt_upi: values.paymentOptions.upi || false,
+        job_pmt_wallets: values.paymentOptions.wallets || false,
+        job_pmt_e_challan: values.paymentOptions.eChallen || false,
+      };
+    } else if (section === "selection") {
+      // Filter out empty selection steps
+      const validSelection = (values.selection || []).filter(s => s && s.trim());
+
+      if (validSelection.length === 0) {
+        setMessage({ text: "Please add at least one selection step", variant: "warning" });
+        return;
+      }
+
+      sectionData = { selection: validSelection };
+
+    } else if (section === "links") {
+      // Filter out incomplete links
+      const validLinks = (values.links || []).filter(l => l.type && l.label && l.url);
+
+      if (validLinks.length === 0) {
+        setMessage({ text: "Please add at least one complete link", variant: "warning" });
+        return;
+      }
+
+      const linksMap = {};
+      validLinks.forEach((l) => {
+        linksMap[l.label.trim()] = l.url.trim();
+      });
+
+      sectionData = { job_important_links: linksMap };
+
+    } else if (section === "howToApply") {
+      if (!values.howToApply || values.howToApply.trim() === "") {
+        setMessage({ text: "Please fill 'How to Apply' section", variant: "warning" });
+        return;
+      }
+
+      sectionData = { howToApply: values.howToApply.trim() };
+
+    } else if (section === "metaDetails") {
+      if (!values.metaDetails?.job_meta_title) {
+        setMessage({ text: "Meta Title is required", variant: "warning" });
+        return;
+      }
+
+      sectionData = {
+        job_meta_title: values.metaDetails.job_meta_title?.trim() || "",
+        job_meta_description: values.metaDetails.job_meta_description?.trim() || "",
+        job_meta_keywords: values.metaDetails.job_meta_keywords?.trim() || "",
+        job_meta_schemas: values.metaDetails.job_meta_schemas?.trim() || "",
+      };
+    } else if (section === "files") {
+      // FIX: Handle file uploads
+      if (!uploadedFiles || uploadedFiles.length === 0) {
+        setMessage({ text: "Please select files to upload", variant: "warning" });
+        return;
+      }
+
       const fd = new FormData();
-      uploadedFiles.forEach((file) => fd.append("files", file));
       fd.append("jobId", id);
+      
+      // Append all files
+      uploadedFiles.forEach((file) => {
+        fd.append("files", file);
+      });
 
       try {
-        await api.post(`/api/jobs/files`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-        setUploadedFiles([]);
-        setMessage({ text: "Files uploaded successfully!", variant: "success" });
-        setSectionsTracking((prev) => {
-          const updated = { ...prev, files: true };
-          maybeRedirect(updated);
-          return updated;
+        const res = await axios.post(`/jobs/files`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
         });
+        console.log("Files uploaded:", res.data);
+        setMessage({ text: "Files uploaded successfully!", variant: "success" });
+        setUploadedFiles([]); // Clear uploaded files
+        
+        if (requiredSections.includes(section)) {
+          setSectionsTracking((prev) => {
+            const updated = { ...prev, [section]: true };
+            maybeRedirect(updated);
+            return updated;
+          });
+        }
+        return; // Exit early for files
       } catch (error) {
-        setMessage({ text: "Error uploading files", variant: "danger" });
+        console.error("Error uploading files:", error);
+        setMessage({
+          text: error.response?.data?.error || "Error uploading files",
+          variant: "danger",
+        });
+        return;
       }
+    }
+
+    if (!sectionData || Object.keys(sectionData).length === 0) {
+      console.warn("No valid data to save for section:", section);
+      setMessage({ text: "No data to save. Please fill required fields.", variant: "warning" });
       return;
     }
 
     try {
-      await api.post(`/api/jobs/save-section`, { jobId: id, section, data: sectionData });
+      const res = await axios.post(`/jobs/save-section`, {
+        jobId: id,
+        section,
+        data: sectionData
+      });
+      console.log(`Saved section ${section}:`, res.data);
       setMessage({ text: `${section} saved successfully!`, variant: "success" });
 
       if (requiredSections.includes(section)) {
@@ -279,7 +535,11 @@ export default function AddJob() {
         });
       }
     } catch (error) {
-      setMessage({ text: error.response?.data?.error || `Error saving ${section}`, variant: "danger" });
+      console.error("Error saving section:", error);
+      setMessage({
+        text: error.response?.data?.error || `Error saving ${section}`,
+        variant: "danger"
+      });
     }
   };
 
@@ -287,7 +547,8 @@ export default function AddJob() {
     if (!values._id) return;
 
     try {
-      await api.delete(`/api/jobs/${values._id}/section/${section}/${index}`);
+      const res = await axios.delete(`/jobs/${values._id}/section/${section}/${index}`);
+      console.log(`Deleted item from section ${section} at index ${index}:`, res.data);
       arrayHelpers.remove(index);
       setMessage({ text: `${section} item deleted successfully!`, variant: "success" });
     } catch (error) {
@@ -313,55 +574,59 @@ export default function AddJob() {
             <Form onSubmit={(e) => e.preventDefault()}>
               {/* Basic Details */}
               <ComponentCard className="mb-3" title="Basic Job Details" isCollapsible defaultOpen={false}>
-                <Card.Body>
+                <Card.Body className="">
                   <Row>
                     <Col md={4}>
                       <FormInput
-                        name="postName"
-                        label="Post Title"
-                        value={values.postName}
+                        name="job_title"
+                        label="Job Title"
+                        value={values.job_title}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        touched={touched.postName}
-                        errors={errors.postName}
+                        touched={touched.job_title}
+                        errors={errors.job_title}
+                        required
                       />
                     </Col>
                     <Col md={4}>
                       <FormInput
-                        name="shortDescription"
+                        name="job_short_desc"
                         label="Short Description"
                         as="textarea"
-                        value={values.shortDescription}
+                        value={values.job_short_desc}
                         onChange={handleChange}
                         onBlur={handleBlur}
                         style={{ height: "37px" }}
+                        required
                       />
                     </Col>
                     <Col md={4}>
                       <FormInput
-                        name="AdvertisementNumber"
+                        name="job_advertisement_no"
                         label="Advertisement Number"
-                        value={values.shortDescription}
+                        value={values.job_advertisement_no}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        errors={errors.postName}
+                        errors={errors.job_advertisement_no}
+                        required
                       />
                     </Col>
                     <Col md={4}>
                       <FormInput
-                        name="organization"
+                        name="job_organization"
                         label="Organization"
-                        value={values.organization}
+                        value={values.job_organization}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        touched={touched.organization}
-                        errors={errors.organization}
+                        touched={touched.job_organization}
+                        errors={errors.job_organization}
+                        required
                       />
                     </Col>
                     <Col md={4}>
                       <Form.Group className="mb-2">
                         <Form.Label>Job Type</Form.Label>
-                        <Form.Select name="jobType" value={values.jobType} onChange={handleChange}>
+                        <Form.Select name="job_type" value={values.job_type} onChange={handleChange}>
                           <option>Permanent</option>
                           <option>Contract</option>
                           <option>Apprentice</option>
@@ -371,7 +636,7 @@ export default function AddJob() {
                     <Col md={4}>
                       <Form.Group className="mb-2">
                         <Form.Label>Sector</Form.Label>
-                        <Form.Select name="sector" value={values.sector} onChange={handleChange}>
+                        <Form.Select name="job_sector" value={values.job_sector} onChange={handleChange}>
                           <option>Central Govt</option>
                           <option>State Govt</option>
                           <option>PSU</option>
@@ -381,22 +646,24 @@ export default function AddJob() {
                     <Col md={4}>
                       <Form.Group className="mb-2">
                         <Form.Label>Category</Form.Label>
-                        <Form.Select name="category" value={values.category} onChange={handleChange}>
-                          <option>Engineering</option>
-                          <option>Medical</option>
-                          <option>Management</option>
-                          <option>Others</option>
+                        <Form.Select name="job_category" value={values.job_category} onChange={handleChange}>
+                          <option value="">Select</option>
+                          <option value="Engineering">Engineering</option>
+                          <option value="Medical">Medical</option>
+                          <option value="Management">Management</option>
+                          <option value="Others">Others</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
                     <Col md={4}>
                       <Form.Group className="mb-2">
                         <Form.Label>Sub-Category</Form.Label>
-                        <Form.Select name="subCategory" value={values.subCategory} onChange={handleChange}>
-                          <option>Engineering</option>
-                          <option>Medical</option>
-                          <option>Management</option>
-                          <option>Others</option>
+                        <Form.Select name="job_sub_category" value={values.job_sub_category} onChange={handleChange}>
+                          <option value="">Select</option>
+                          <option value="Engineering">Engineering</option>
+                          <option value="Medical">Medical</option>
+                          <option value="Management">Management</option>
+                          <option value="Others">Others</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
@@ -426,6 +693,7 @@ export default function AddJob() {
                       </Form.Group>
                     </Col>
                   </Row>
+
                   <div className="text-end mt-2">
                     <Button size="sm" onClick={() => saveSection("basicDetails", values, setFieldValue)}>
                       Save Basic Details
@@ -552,7 +820,7 @@ export default function AddJob() {
                 </Card.Body>
               </ComponentCard>
 
-              {/* Vacancies */}
+              {/* Vacancies - Fix PWD field name */}
               <ComponentCard className="mb-3" title="Vacancies" isCollapsible>
                 <Card.Body>
                   <FieldArray name="vacancies">
@@ -567,14 +835,15 @@ export default function AddJob() {
                             <th>OBC</th>
                             <th>SC</th>
                             <th>ST</th>
-                            <th>PwBD</th>
+                            <th>PWD</th>
+                            <th>Ex-Service</th>
                             <th>Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {values.vacancies.map((v, idx) => (
                             <tr key={idx}>
-                              {["postName", "total", "UR", "EWS", "OBC", "SC", "ST", "PwBD"].map((fld) => (
+                              {["postName", "total", "UR", "EWS", "OBC", "SC", "ST", "PWD", "ExService"].map((fld) => (
                                 <td key={fld}>
                                   <Form.Control
                                     className="border-0 shadow-none"
@@ -589,7 +858,7 @@ export default function AddJob() {
                                 <Button
                                   size="sm"
                                   onClick={() => arrayHelpers.push({
-                                    postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PwBD: 0
+                                    postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PWD: 0, ExService: 0
                                   })}
                                 >
                                   +
@@ -616,37 +885,63 @@ export default function AddJob() {
                 </Card.Body>
               </ComponentCard>
 
-              {/* Eligibility */}
+              {/* Eligibility - Add experience field */}
               <ComponentCard className="mb-3" title="Eligibility" isCollapsible>
                 <Card.Body>
                   <Row>
                     <Col md={4}>
                       <FormInput
                         name="eligibility.qualification"
-                        label="Qualification"
+                        label="Qualification *"
                         value={values.eligibility.qualification}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        touched={touched.eligibility?.qualification}
+                        errors={errors.eligibility?.qualification}
                       />
                     </Col>
                     <Col md={2}>
                       <FormInput
                         name="eligibility.ageMin"
-                        label="Min Age"
+                        label="Min Age *"
                         type="number"
                         value={values.eligibility.ageMin}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        touched={touched.eligibility?.ageMin}
+                        errors={errors.eligibility?.ageMin}
                       />
                     </Col>
                     <Col md={2}>
                       <FormInput
                         name="eligibility.ageMax"
-                        label="Max Age"
+                        label="Max Age *"
                         type="number"
                         value={values.eligibility.ageMax}
                         onChange={handleChange}
                         onBlur={handleBlur}
+                        touched={touched.eligibility?.ageMax}
+                        errors={errors.eligibility?.ageMax}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <FormInput
+                        name="eligibility.experience"
+                        label="Experience Required"
+                        value={values.eligibility.experience}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                    <Col md={12}>
+                      <FormInput
+                        name="eligibility.extraRequirements"
+                        label="Extra Requirements"
+                        as="textarea"
+                        value={values.eligibility.extraRequirements}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        rows={2}
                       />
                     </Col>
                   </Row>
@@ -658,39 +953,133 @@ export default function AddJob() {
                 </Card.Body>
               </ComponentCard>
 
-              {/* Salary */}
+              {/* Salary - Add bond condition field */}
               <ComponentCard className="mb-3" title="Salary & Benefits" isCollapsible>
                 <Card.Body>
                   <Row className="">
-                    <Col md={4}>
+                    <Col md={3}>
                       <FormInput
-                        name="salary.payScale"
-                        label="Pay Scale"
-                        value={values.salary.payScale}
+                        name="salary.min"
+                        label="Min Salary *"
+                        type="number"
+                        value={values.salary.min}
                         onChange={handleChange}
+                        touched={touched.salary?.min}
+                        errors={errors.salary?.min}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col md={3}>
+                      <FormInput
+                        name="salary.max"
+                        label="Max Salary *"
+                        type="number"
+                        value={values.salary.max}
+                        onChange={handleChange}
+                        touched={touched.salary?.max}
+                        errors={errors.salary?.max}
+                      />
+                    </Col>
+                    <Col md={3}>
                       <FormInput
                         name="salary.inHand"
-                        label="In Hand"
+                        label="In Hand *"
                         type="number"
                         value={values.salary.inHand}
                         onChange={handleChange}
+                        touched={touched.salary?.inHand}
+                        errors={errors.salary?.inHand}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col md={3}>
                       <FormInput
                         name="salary.allowances"
                         label="Allowances"
+                        type="number"
                         value={values.salary.allowances}
                         onChange={handleChange}
                       />
+                    </Col>
+                    <Col md={12}>
+                      <Form.Label>Bond Condition</Form.Label>
+                      <SnowEditor value={values.salaryBondConditions} onChange={(v) => setFieldValue("salaryBondConditions", v)} />
                     </Col>
                   </Row>
                   <div className="text-end mt-2">
                     <Button size="sm" onClick={() => saveSection("salary", values, setFieldValue)}>
                       Save Salary
+                    </Button>
+                  </div>
+                </Card.Body>
+              </ComponentCard>
+
+              {/* Payment Options - NEW SECTION */}
+              <ComponentCard className="mb-3" title="Payment Options" isCollapsible>
+                <Card.Body>
+                  <Row>
+                    <Col md={4}>
+                      <Form.Check
+                        type="checkbox"
+                        id="paymentOptions.debitCard"
+                        name="paymentOptions.debitCard"
+                        label="Debit Card"
+                        checked={values.paymentOptions.debitCard}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Check
+                        type="checkbox"
+                        id="paymentOptions.creditCard"
+                        name="paymentOptions.creditCard"
+                        label="Credit Card"
+                        checked={values.paymentOptions.creditCard}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Check
+                        type="checkbox"
+                        id="paymentOptions.netBanking"
+                        name="paymentOptions.netBanking"
+                        label="Net Banking"
+                        checked={values.paymentOptions.netBanking}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Check
+                        type="checkbox"
+                        id="paymentOptions.upi"
+                        name="paymentOptions.upi"
+                        label="UPI"
+                        checked={values.paymentOptions.upi}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Check
+                        type="checkbox"
+                        id="paymentOptions.wallets"
+                        name="paymentOptions.wallets"
+                        label="Wallets (Paytm, PhonePe, etc.)"
+                        checked={values.paymentOptions.wallets}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Check
+                        type="checkbox"
+                        id="paymentOptions.eChallen"
+                        name="paymentOptions.eChallen"
+                        label="E-Challan"
+                        checked={values.paymentOptions.eChallen}
+                        onChange={handleChange}
+                      />
+                    </Col>
+                  </Row>
+                  <div className="text-end mt-2">
+                    <Button size="sm" onClick={() => saveSection("paymentOptions", values, setFieldValue)}>
+                      Save Payment Options
                     </Button>
                   </div>
                 </Card.Body>
@@ -814,6 +1203,7 @@ export default function AddJob() {
                       <FormInput
                         name="metaDetails.title"
                         label="Meta Title"
+                        sublabel="Max 60 characters"
                         value={values.metaDetails.title}
                         onChange={handleChange}
                         onBlur={handleBlur}
@@ -823,9 +1213,29 @@ export default function AddJob() {
                     </Col>
                     <Col md={6}>
                       <FormInput
+                        name="metaDetails.description"
+                        label="Meta Description"
+                        sublabel="Max 160 characters"
+                        value={values.metaDetails.description}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <FormInput
                         name="metaDetails.keywords"
                         label="Meta Keywords"
+                        sublabel="Comma separated, max 10 keywords"
                         value={values.metaDetails.keywords}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <FormInput
+                        name="metaDetails.schemas"
+                        label="Meta Schemas"
+                        value={values.metaDetails.schemas}
                         onChange={handleChange}
                         onBlur={handleBlur}
                       />

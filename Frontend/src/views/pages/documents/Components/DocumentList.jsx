@@ -30,7 +30,7 @@ const JobList = () => {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`/jobs`);
+      const res = await axios.get(`${BASE_URL}/api/jobs`);
       console.log("Fetched jobs:", res.data);
       setJobs(res.data);
     } catch (err) {
@@ -48,10 +48,11 @@ const JobList = () => {
   }, []);
 
   const columns = [
-    { title: "Post Name", data: "job_title" },
-    { title: "Organization", data: "job_organization" },
-    { title: "Job Type", data: "job_type" },
-    { title: "Category", data: "job_category" },
+    { title: "Post Name", data: "postName" },
+    { title: "Organization", data: "organization" },
+    { title: "Job Type", data: "jobType" },
+    { title: "Category", data: "jobCategory" },
+    { title: "Location", data: "jobLocation" },
     {
       title: "Actions",
       data: null,
@@ -103,6 +104,10 @@ const JobList = () => {
       },
     },
   ];
+
+
+  
+
 
   return (
     <Container fluid className="py-3">
