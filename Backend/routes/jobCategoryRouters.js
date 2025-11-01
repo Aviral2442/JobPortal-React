@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/JobCategoryUploadMidd');
 const JobCategoryController = require('../controllers/JobCategoryController');
+const JobSectorController = require('../controllers/JobSectorController');
+const JobTypeController = require('../controllers/JobTypeController');
 
 router.get('/get_job_category_list', JobCategoryController.getJobCategoryList);
 router.post('/create_job_category', upload('Category').single('category_image'), JobCategoryController.createJobCategory);
@@ -10,5 +12,13 @@ router.put('/update_job_category/:id', upload('Category').single('category_image
 router.get('/get_job_subcategory_list', JobCategoryController.getJobSubCategoryList);
 router.post('/create_job_subcategory', upload('SubCategory').single('subcategory_image'), JobCategoryController.createJobSubCategory);
 router.put('/update_job_subcategory/:id', upload('SubCategory').single('subcategory_image'), JobCategoryController.updateJobSubCategory);
+
+router.get('/get_job_sector_list', JobSectorController.getJobSectorList);
+router.post('/create_job_sector', JobSectorController.createJobSector);
+router.put('/update_job_sector/:id', JobSectorController.updateJobSector);
+
+router.get('/get_job_type_list', JobTypeController.getJobTypeList);
+router.post('/create_job_type', JobTypeController.createJobType);
+router.put('/update_job_type/:id', JobTypeController.updateJobType);
 
 module.exports = router;
