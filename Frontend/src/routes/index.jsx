@@ -12,10 +12,10 @@ const SubCategory = lazy(() => import('@/views/subcategory')); // single categor
 const AddCategory = lazy(() => import('@/views/pages/Category/components/AddCategory'));
 const AddSubCategory = lazy(() => import('@/views/pages/Category/components/AddSubCategory'));
 const EditSubCategory = lazy(() => import('@/views/pages/Category/components/EditSubCategory'));
-const Jobs = lazy(() => import('@/views/pages/Jobs')); 
-const EditJob = lazy(() => import('@/views/pages/Jobs/components/EditJob'));
-const AddJob = lazy(() => import('@/views/pages/Jobs/components/AddJob'));
-const ViewJob = lazy(() => import('@/views/pages/Jobs/components/ViewJob'));
+const Jobs = lazy(() => import('@/views/pages/jobs')); 
+const EditJob = lazy(() => import('@/views/pages/jobs/components/EditJob'));
+const AddJob = lazy(() => import('@/views/pages/jobs/components/AddJob'));
+const ViewJob = lazy(() => import('@/views/pages/jobs/components/ViewJob'));
 const AdmitCard = lazy(() => import('@/views/pages/admit-card'));
 const AddAdmitCard = lazy(() => import('@/views/pages/admit-card/components/AddAdmitCard'));
 const Results = lazy(() => import('@/views/pages/results'));
