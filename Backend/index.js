@@ -14,7 +14,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: '*', 
+  origin: 'https://job-portal-seven-taupe.vercel.app' || '*', 
   credentials: true,
 }));
 app.use(express.json()); // parse JSON
