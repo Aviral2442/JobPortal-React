@@ -103,28 +103,15 @@ const AddCategory = ({ mode, data, onCancel, onDataChanged }) => {
 
   return (
     <Container fluid className="pt-4">
-      <ComponentCard 
-        title={isEditMode ? 'Edit Category' : 'Add Category'} 
-        isCollapsible 
+      <ComponentCard
+        title={isEditMode ? 'Edit Category' : 'Add Category'}
+        isCollapsible
         defaultOpen={false}
       >
         {message && <Alert variant={variant} dismissible onClose={() => setMessage('')}>{message}</Alert>}
         <Form onSubmit={handleSubmit} className='py-2'>
-          <Form.Group className="mb-3" controlId="categoryName">
-            <Form.Label>
-              Category Name <span className="text-danger">*</span>
-            </Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter category name"
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
-              required
-            />
-          </Form.Group>
-
           <Form.Group className="mb-3" controlId="categoryImage">
-            <Form.Label>Upload Image {!isEditMode && '(Optional)'}</Form.Label>
+            <Form.Label>Upload Image</Form.Label>
             <Form.Control
               type="file"
               accept="image/*"
@@ -142,6 +129,20 @@ const AddCategory = ({ mode, data, onCancel, onDataChanged }) => {
             </div>
           )}
 
+          <Form.Group className="mb-3" controlId="categoryName">
+            <Form.Label>
+              Category Name <span className="text-danger">*</span>
+            </Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter category name"
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              required
+            />
+          </Form.Group>
+
+
           <div className="d-flex gap-2">
             <Button variant="primary" type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
@@ -152,9 +153,9 @@ const AddCategory = ({ mode, data, onCancel, onDataChanged }) => {
                 isEditMode ? 'Update Category' : 'Add Category'
               )}
             </Button>
-            <Button 
-              variant="secondary" 
-              type="button" 
+            <Button
+              variant="secondary"
+              type="button"
               onClick={onCancel}
               disabled={isSubmitting}
             >

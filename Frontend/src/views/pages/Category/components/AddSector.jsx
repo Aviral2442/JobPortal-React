@@ -117,24 +117,18 @@ const AddSubCategory = ({ mode, data, onCancel, onDataChanged }) => {
       <ComponentCard title={isEditMode ? 'Edit Sub Category' : 'Add Sub Category'}>
         {message && <Alert variant={variant} dismissible onClose={() => setMessage('')}>{message}</Alert>}
         <Form onSubmit={handleSubmit} className='py-2'>
-          <Form.Group className="mb-3" controlId="subCategoryImage">
-            <Form.Label>Upload Image <span className="text-danger">*</span></Form.Label>
+          <Form.Group className="mb-3" controlId="subCategoryName">
+            <Form.Label>
+              Sub-Category Name <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
-              type="file"
-              accept="image/*"
-              onChange={handleSubCategoryImageChange}
+              type="text"
+              placeholder="Enter sub-category name"
+              value={subCategoryName}
+              onChange={(e) => setSubCategoryName(e.target.value)}
+              required
             />
-            {isEditMode && <Form.Text className="text-muted">
-              Leave empty to keep the current image
-            </Form.Text>}
           </Form.Group>
-
-          {preview && (
-            <div className="mb-3 text-start">
-              <p>{isEditMode ? 'Current / New Image:' : 'Image Preview:'}</p>
-              <Image src={preview} alt="Preview" thumbnail width="200" />
-            </div>
-          )}
 
           <Form.Group className="mb-3" controlId="parentCategory">
             <Form.Label>
@@ -161,18 +155,24 @@ const AddSubCategory = ({ mode, data, onCancel, onDataChanged }) => {
             )}
           </Form.Group>
 
-          <Form.Group className="mb-3" controlId="subCategoryName">
-            <Form.Label>
-              Sub-Category Name <span className="text-danger">*</span>
-            </Form.Label>
+          <Form.Group className="mb-3" controlId="subCategoryImage">
+            <Form.Label>Upload Image {!isEditMode && '(Optional)'}</Form.Label>
             <Form.Control
-              type="text"
-              placeholder="Enter sub-category name"
-              value={subCategoryName}
-              onChange={(e) => setSubCategoryName(e.target.value)}
-              required
+              type="file"
+              accept="image/*"
+              onChange={handleSubCategoryImageChange}
             />
+            {isEditMode && <Form.Text className="text-muted">
+              Leave empty to keep the current image
+            </Form.Text>}
           </Form.Group>
+
+          {preview && (
+            <div className="mb-3 text-start">
+              <p>{isEditMode ? 'Current / New Image:' : 'Image Preview:'}</p>
+              <Image src={preview} alt="Preview" thumbnail width="200" />
+            </div>
+          )}
 
           <div className="d-flex gap-2">
             <Button variant="primary" type="submit" disabled={isSubmitting || loadingCategories}>
@@ -184,9 +184,9 @@ const AddSubCategory = ({ mode, data, onCancel, onDataChanged }) => {
                 isEditMode ? 'Update Sub-Category' : 'Add Sub-Category'
               )}
             </Button>
-            <Button
-              variant="secondary"
-              type="button"
+            <Button 
+              variant="secondary" 
+              type="button" 
               onClick={onCancel}
               disabled={isSubmitting}
             >

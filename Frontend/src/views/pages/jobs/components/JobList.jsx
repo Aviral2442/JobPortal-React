@@ -15,6 +15,7 @@ import {
   TbEye,
 } from "react-icons/tb";
 import axios from "@/api/axios";
+import toast from "react-hot-toast";
 
 const JobList = () => {
   const [jobs, setJobs] = useState([]);
@@ -23,6 +24,7 @@ const JobList = () => {
   const [variant, setVariant] = useState("success");
   const navigate = useNavigate();
   const tableRef = useRef(null);
+  
 
   const BASE_URL = import.meta.env.VITE_BASE_URL;
 
@@ -32,11 +34,13 @@ const JobList = () => {
     try {
       const res = await axios.get(`/jobs`);
       console.log("Fetched jobs:", res.data);
+      toast.success("Jobs fetched successfully");
       setJobs(res.data);
     } catch (err) {
       console.error(err);
       setJobs([]);
       setMessage("Failed to fetch jobs.");
+      toast.error("Failed to fetch jobs");
       setVariant("danger");
     } finally {
       setLoading(false);

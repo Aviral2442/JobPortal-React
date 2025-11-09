@@ -37,6 +37,8 @@ import {
 
 import { createRoot } from "react-dom/client";
 import axios from "@/api/axios";
+import toast from "react-hot-toast";
+import JobTypeList from "@/views/pages/Category/components/JobTypeList";
 
 const tableConfig = {
   1: {
@@ -65,24 +67,24 @@ const ExportDataWithButtons = ({
   const [searchTerm, setSearchTerm] = useState("");
   const tableRef = useRef(null);
 
-  const { endpoint, columns } = tableConfig[tabKey];
+  const config = tableConfig[tabKey] || {};
+  const endpoint = config.endpoint;
+  const columns = config.columns || [];
 
   const fetchData = async () => {
+    // If no endpoint configured for this tab, skip fetch (JobType/Sector use their own components)
+    if (!endpoint) {
+      setRows([]);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await axios.get(endpoint);
       console.log("Fetched data:", res.data);
-
-      switch (tabKey) {
-        case 1:
-          setRows(res.data?.jsonData?.data || []);
-          break;
-        case 2:
-          setRows(res.data?.jsonData?.data || []);
-          break;
-        default:
-          setRows(res.data?.data || []);
-      }
+      toast.success("Data fetched successfully");
+      // keep existing handling for tabs that use tableConfig
+      setRows(res.data?.jsonData?.data || res.data?.data || []);
     } catch (err) {
       console.error("Fetch error:", err);
       setRows([]);
@@ -181,6 +183,34 @@ const ExportDataWithButtons = ({
     },
   ];
 
+  const renderTable = () => {
+    switch (tabKey) {
+      case 1:
+        return <CategoryList onEditRow={onEditRow} refreshFlag={refreshFlag} onDataChanged={onDataChanged} />;
+      case 2:
+        return <SubCategoryList onEditRow={onEditRow} refreshFlag={refreshFlag} onDataChanged={onDataChanged} />;
+      case 3:
+        return <JobTypeList onEditRow={onEditRow} refreshFlag={refreshFlag} onDataChanged={onDataChanged} />;
+      case 4:
+        return <SectorList onEditRow={onEditRow} refreshFlag={refreshFlag} onDataChanged={onDataChanged} />;
+      default:
+        return <CategoryList onEditRow={onEditRow} refreshFlag={refreshFlag} onDataChanged={onDataChanged} />;
+    }
+  };
+
+  // For tabs that have specialized components (JobType / Sector), render them directly.
+  if (tabKey === 3 || tabKey === 4) {
+    return (
+      <ComponentCard
+        title={tabKey === 3 ? "Job Type" : "Sector"}
+        className="mb-4 pb-3"
+        onAddNew={onAddNew}
+      >
+        {renderTable()}
+      </ComponentCard>
+    );
+  }
+
   return (
     <>
       <ComponentCard
@@ -188,7 +218,6 @@ const ExportDataWithButtons = ({
         className="mb-4 pb-3"
         onAddNew={onAddNew}
       >
-
         {loading ? (
           <div className="text-center p-4">Loading...</div>
         ) : (
@@ -196,7 +225,6 @@ const ExportDataWithButtons = ({
             ref={tableRef}
             data={rows}
             columns={columnsWithActions}
-
             options={{
               responsive: true,
               searching: true,

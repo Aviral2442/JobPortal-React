@@ -8,9 +8,10 @@ const Dashboard = lazy(() => import('@/views/dashboard'));
 const AuthLogIn = lazy(() => import('@/views/auth/login'));
 const Error404 = lazy(() => import('@/views/error/404'));
 const Category = lazy(() => import('@/views/pages/Category')); // single category component
-const SubCategory = lazy(() => import('@/views/subcategory')); // single category component
 const AddCategory = lazy(() => import('@/views/pages/Category/components/AddCategory'));
 const AddSubCategory = lazy(() => import('@/views/pages/Category/components/AddSubCategory'));
+const AddJobType = lazy(() => import('@/views/pages/Category/components/AddJobType'));
+const AddSector = lazy(() => import('@/views/pages/Category/Components/AddSector'));
 const EditSubCategory = lazy(() => import('@/views/pages/Category/components/EditSubCategory'));
 const Jobs = lazy(() => import('@/views/pages/Jobs')); 
 const EditJob = lazy(() => import('@/views/pages/Jobs/components/EditJob'));
@@ -62,16 +63,20 @@ const categoryRoutes = [
     element:<AddCategory/>
   },
   {
-    path: '/admin/sub-category',
-    element: <SubCategory />, // reuse Category component
-  },
-  {
     path:'admin/sub-category/add',
     element:<AddSubCategory/>
   },{
     path:'admin/sub-category/edit/:id',
     element:<EditSubCategory/>
   },
+  {
+    path: 'admin/job-type/add',
+    element: <AddJobType/>
+  },
+  {
+    path: 'admin/sector/add',
+    element: <AddSector/>
+  }
 ];
 
 //job routes

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Formik, FieldArray } from "formik";
 import * as Yup from "yup";
 import { Form, Button, Row, Col, Card, Table, Alert, Image } from "react-bootstrap";
@@ -10,7 +10,6 @@ import { FaRegTrashAlt } from "react-icons/fa";
 import axios from "@/api/axios";
 
 
-// Validation Schema (updated to prevent blank saves)
 const jobValidationSchema = Yup.object({
   _id: Yup.string(),
   metaDetails: Yup.object({
@@ -78,20 +77,19 @@ const jobValidationSchema = Yup.object({
   job_logo: Yup.string(),
 });
 
-// Reusable Form Input Component with required indicator
-const FormInput = ({ 
-  name, 
-  label, 
-  sublabel, 
-  type = "text", 
-  as, 
-  value, 
-  onChange, 
-  onBlur, 
-  touched, 
-  errors, 
-  required = false, // Add required prop
-  ...props 
+const FormInput = ({
+  name,
+  label,
+  sublabel,
+  type = "text",
+  as,
+  value,
+  onChange,
+  onBlur,
+  touched,
+  errors,
+  required = false,
+  ...props
 }) => (
   <Form.Group className="mb-2">
     <div className="d-flex justify-content-between align-items-end">
@@ -121,15 +119,37 @@ export default function AddJob() {
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [message, setMessage] = useState({ text: "", variant: "" });
+  const [categoryList, setCategoryList] = useState([]);
+  const [subcategoryList, setSubcategoryList] = useState([]);
 
   const requiredSections = [
     "basicDetails", "dates", "fees", "vacancies",
-    "eligibility", "salary", "paymentOptions","selection", "links",
+    "eligibility", "salary", "paymentOptions", "selection", "links",
     "howToApply", "metaDetails"
   ];
   const [sectionsTracking, setSectionsTracking] = useState(
     Object.fromEntries(requiredSections.map((s) => [s, false]))
   );
+
+
+  //fetch category and subcategory values 
+  const fetchCategories = async () => {
+    try {
+      const category = await axios.get('/job-categories/get_job_category_list');
+      const subcategory = await axios.get('/job-categories/get_job_subcategory_list');
+      setCategoryList(category.data?.jsonData?.data);
+      setSubcategoryList(subcategory.data?.jsonData?.data);
+      console.log('Categories fetched:', category.data);
+      console.log('Subcategories fetched:', subcategory.data);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  }
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
 
   const initialValues = useMemo(() => ({
     _id: "",
@@ -204,7 +224,6 @@ export default function AddJob() {
   const ensureJobId = async (values, setFieldValue) => {
     if (values._id) return values._id;
 
-    // Validate required fields before creating job
     if (!values.job_title || !values.job_organization || !values.job_short_desc) {
       setMessage({ text: "Please fill required fields: Title, Organization, and Short Description", variant: "danger" });
       return null;
@@ -480,7 +499,7 @@ export default function AddJob() {
 
       const fd = new FormData();
       fd.append("jobId", id);
-      
+
       // Append all files
       uploadedFiles.forEach((file) => {
         fd.append("files", file);
@@ -493,7 +512,7 @@ export default function AddJob() {
         console.log("Files uploaded:", res.data);
         setMessage({ text: "Files uploaded successfully!", variant: "success" });
         setUploadedFiles([]); // Clear uploaded files
-        
+
         if (requiredSections.includes(section)) {
           setSectionsTracking((prev) => {
             const updated = { ...prev, [section]: true };
@@ -544,16 +563,20 @@ export default function AddJob() {
   };
 
   const deleteSectionItem = async (section, index, values, arrayHelpers) => {
-    if (!values._id) return;
-
-    try {
-      const res = await axios.delete(`/jobs/${values._id}/section/${section}/${index}`);
-      console.log(`Deleted item from section ${section} at index ${index}:`, res.data);
-      arrayHelpers.remove(index);
-      setMessage({ text: `${section} item deleted successfully!`, variant: "success" });
-    } catch (error) {
-      setMessage({ text: `Error deleting ${section} item`, variant: "danger" });
+    // Allow deletion even without job ID (for new items not yet saved)
+    if (values._id) {
+      try {
+        const res = await axios.delete(`/jobs/${values._id}/section/${section}/${index}`);
+        console.log(`Deleted item from section ${section} at index ${index}:`, res.data);
+        setMessage({ text: `${section} item deleted successfully!`, variant: "success" });
+      } catch (error) {
+        console.error(`Error deleting ${section} item:`, error);
+        setMessage({ text: `Error deleting ${section} item`, variant: "danger" });
+        return; // Don't remove from UI if API call failed
+      }
     }
+    // Remove from form state
+    arrayHelpers.remove(index);
   };
 
   return (
@@ -647,11 +670,10 @@ export default function AddJob() {
                       <Form.Group className="mb-2">
                         <Form.Label>Category</Form.Label>
                         <Form.Select name="job_category" value={values.job_category} onChange={handleChange}>
-                          <option value="">Select</option>
-                          <option value="Engineering">Engineering</option>
-                          <option value="Medical">Medical</option>
-                          <option value="Management">Management</option>
-                          <option value="Others">Others</option>
+                          <option value="" selected disabled>Select Category</option>
+                          {categoryList.map((cat, index) => {
+                            return <option key={index} value={cat.category_name}>{cat.category_name}</option>
+                          })}
                         </Form.Select>
                       </Form.Group>
                     </Col>
@@ -659,11 +681,10 @@ export default function AddJob() {
                       <Form.Group className="mb-2">
                         <Form.Label>Sub-Category</Form.Label>
                         <Form.Select name="job_sub_category" value={values.job_sub_category} onChange={handleChange}>
-                          <option value="">Select</option>
-                          <option value="Engineering">Engineering</option>
-                          <option value="Medical">Medical</option>
-                          <option value="Management">Management</option>
-                          <option value="Others">Others</option>
+                          <option value="" selected disabled>Select SubCategory</option>
+                          {subcategoryList.map((subCat, index) => {
+                            return <option key={index} value={subCat.subcategory_name}>{subCat.subcategory_name}</option>
+                          })}
                         </Form.Select>
                       </Form.Group>
                     </Col>
@@ -707,57 +728,54 @@ export default function AddJob() {
                 <Card.Body>
                   <FieldArray name="dates">
                     {(arrayHelpers) => (
-                      <Table bordered size="sm">
-                        <thead>
-                          <tr>
-                            <th>Label</th>
-                            <th>Date</th>
-                            <th className="text-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {values.dates.map((field, idx) => (
-                            <tr key={idx}>
-                              <td>
-                                <Form.Control
-                                  className="border-0 shadow-none"
-                                  name={`dates.${idx}.label`}
-                                  value={field.label}
-                                  onChange={handleChange}
-                                />
-                              </td>
-                              <td>
-                                <Form.Control
-                                  className="border-0 shadow-none"
-                                  type="date"
-                                  name={`dates.${idx}.date`}
-                                  value={field.date}
-                                  onChange={handleChange}
-                                />
-                              </td>
-                              <td className="d-flex gap-2 justify-content-center">
-                                <Button size="sm" onClick={() => arrayHelpers.push({ label: "", date: "" })}>
-                                  +
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  onClick={() => deleteSectionItem("dates", idx, values, arrayHelpers)}
-                                >
-                                  <FaRegTrashAlt />
-                                </Button>
-                              </td>
+                      <>
+                        <Table bordered size="sm">
+                          <thead>
+                            <tr>
+                              <th>Label</th>
+                              <th>Date</th>
+                              <th className="text-center" style={{ width: '100px' }}>Action</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </Table>
+                          </thead>
+                          <tbody>
+                            {values.dates.map((field, idx) => (
+                              <tr key={idx}>
+                                <td>
+                                  <span>{field.label}</span>
+                                </td>
+                                <td>
+                                  <Form.Control
+                                    className="border-0 shadow-none"
+                                    type="date"
+                                    name={`dates.${idx}.date`}
+                                    value={field.date}
+                                    onChange={handleChange}
+                                  />
+                                </td>
+                                <td className="text-center">
+                                  <Button
+                                    size="sm"
+                                    variant="light"
+                                    onClick={() => deleteSectionItem("dates", idx, values, arrayHelpers)}
+                                  >
+                                    <FaRegTrashAlt />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                        <div className="d-flex justify-content-end gap-2 align-items-center mt-2">
+                          <Button size="sm" variant="outline-primary" onClick={() => arrayHelpers.push({ label: "", date: "" })}>
+                            + Add Date
+                          </Button>
+                          <Button size="sm" onClick={() => saveSection("dates", values, setFieldValue)}>
+                            Save Dates
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </FieldArray>
-                  <div className="text-end mt-2">
-                    <Button size="sm" onClick={() => saveSection("dates", values, setFieldValue)}>
-                      Save Dates
-                    </Button>
-                  </div>
                 </Card.Body>
               </ComponentCard>
 
@@ -766,122 +784,122 @@ export default function AddJob() {
                 <Card.Body>
                   <FieldArray name="fees">
                     {(arrayHelpers) => (
-                      <Table bordered size="sm">
-                        <thead>
-                          <tr>
-                            <th>Category</th>
-                            <th>Fee</th>
-                            <th className="text-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {values.fees.map((f, idx) => (
-                            <tr key={idx}>
-                              <td>
-                                <Form.Control
-                                  className="border-0 shadow-none"
-                                  name={`fees.${idx}.category`}
-                                  value={f.category}
-                                  onChange={handleChange}
-                                />
-                              </td>
-                              <td>
-                                <Form.Control
-                                  className="border-0 shadow-none"
-                                  type="number"
-                                  name={`fees.${idx}.fee`}
-                                  value={f.fee}
-                                  onChange={handleChange}
-                                />
-                              </td>
-                              <td className="d-flex gap-2 justify-content-center">
-                                <Button size="sm" onClick={() => arrayHelpers.push({ category: "", fee: "" })}>
-                                  +
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  onClick={() => deleteSectionItem("fees", idx, values, arrayHelpers)}
-                                >
-                                  <FaRegTrashAlt />
-                                </Button>
-                              </td>
+                      <>
+                        <Table bordered size="sm">
+                          <thead>
+                            <tr>
+                              <th>Category</th>
+                              <th>Fee</th>
+                              <th className="text-center" style={{ width: '100px' }}>Action</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </Table>
+                          </thead>
+                          <tbody>
+                            {values.fees.map((f, idx) => (
+                              <tr key={idx}>
+                                <td>
+                                  <span>{f.category}</span>
+                                </td>
+                                <td>
+                                  <Form.Control
+                                    className="border-0 shadow-none"
+                                    type="number"
+                                    name={`fees.${idx}.fee`}
+                                    value={f.fee}
+                                    onChange={handleChange}
+                                  />
+                                </td>
+                                <td className="text-center">
+                                  <Button
+                                    size="sm"
+                                    variant="light"
+                                    onClick={() => deleteSectionItem("fees", idx, values, arrayHelpers)}
+                                  >
+                                    <FaRegTrashAlt />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                        <div className="d-flex justify-content-end gap-2 align-items-center mt-2">
+                          <Button size="sm" variant="outline-primary" onClick={() => arrayHelpers.push({ category: "", fee: "" })}>
+                            + Add Fee
+                          </Button>
+                          <Button size="sm" onClick={() => saveSection("fees", values, setFieldValue)}>
+                            Save Fees
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </FieldArray>
-                  <div className="text-end mt-2">
-                    <Button size="sm" onClick={() => saveSection("fees", values, setFieldValue)}>
-                      Save Fees
-                    </Button>
-                  </div>
                 </Card.Body>
               </ComponentCard>
 
-              {/* Vacancies - Fix PWD field name */}
+              {/* Vacancies */}
               <ComponentCard className="mb-3" title="Vacancies" isCollapsible>
                 <Card.Body>
                   <FieldArray name="vacancies">
                     {(arrayHelpers) => (
-                      <Table bordered size="sm" responsive>
-                        <thead>
-                          <tr>
-                            <th>Post</th>
-                            <th>Total</th>
-                            <th>UR</th>
-                            <th>EWS</th>
-                            <th>OBC</th>
-                            <th>SC</th>
-                            <th>ST</th>
-                            <th>PWD</th>
-                            <th>Ex-Service</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {values.vacancies.map((v, idx) => (
-                            <tr key={idx}>
-                              {["postName", "total", "UR", "EWS", "OBC", "SC", "ST", "PWD", "ExService"].map((fld) => (
-                                <td key={fld}>
-                                  <Form.Control
-                                    className="border-0 shadow-none"
-                                    type={fld === "postName" ? "text" : "number"}
-                                    name={`vacancies.${idx}.${fld}`}
-                                    value={v[fld]}
-                                    onChange={handleChange}
-                                  />
-                                </td>
-                              ))}
-                              <td className="d-flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => arrayHelpers.push({
-                                    postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PWD: 0, ExService: 0
-                                  })}
-                                >
-                                  +
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="light"
-                                  onClick={() => deleteSectionItem("vacancies", idx, values, arrayHelpers)}
-                                >
-                                  <FaRegTrashAlt />
-                                </Button>
-                              </td>
+                      <>
+                        <Table bordered size="sm" responsive>
+                          <thead>
+                            <tr>
+                              <th>Post</th>
+                              <th>Total</th>
+                              <th>UR</th>
+                              <th>EWS</th>
+                              <th>OBC</th>
+                              <th>SC</th>
+                              <th>ST</th>
+                              <th>PWD</th>
+                              <th>Ex-Service</th>
+                              <th style={{ width: '100px' }}>Action</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </Table>
+                          </thead>
+                          <tbody>
+                            {values.vacancies.map((v, idx) => (
+                              <tr key={idx}>
+                                {["postName", "total", "UR", "EWS", "OBC", "SC", "ST", "PWD", "ExService"].map((fld) => (
+                                  <td key={fld}>
+                                    <Form.Control
+                                      className="border-0 shadow-none"
+                                      type={fld === "postName" ? "text" : "number"}
+                                      name={`vacancies.${idx}.${fld}`}
+                                      value={v[fld]}
+                                      onChange={handleChange}
+                                    />
+                                  </td>
+                                ))}
+                                <td className="text-center">
+                                  <Button
+                                    size="sm"
+                                    variant="light"
+                                    onClick={() => deleteSectionItem("vacancies", idx, values, arrayHelpers)}
+                                  >
+                                    <FaRegTrashAlt />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                        <div className="d-flex justify-content-end gap-2 align-items-center mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => arrayHelpers.push({
+                              postName: "", total: 0, UR: 0, EWS: 0, OBC: 0, SC: 0, ST: 0, PWD: 0, ExService: 0
+                            })}
+                          >
+                            + Add Vacancy
+                          </Button>
+                          <Button size="sm" onClick={() => saveSection("vacancies", values, setFieldValue)}>
+                            Save Vacancies
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </FieldArray>
-                  <div className="text-end mt-2">
-                    <Button size="sm" onClick={() => saveSection("vacancies", values, setFieldValue)}>
-                      Save Vacancies
-                    </Button>
-                  </div>
                 </Card.Body>
               </ComponentCard>
 
@@ -1016,7 +1034,7 @@ export default function AddJob() {
               <ComponentCard className="mb-3" title="Payment Options" isCollapsible>
                 <Card.Body>
                   <Row>
-                    <Col md={4}>
+                    <Col >
                       <Form.Check
                         type="checkbox"
                         id="paymentOptions.debitCard"
@@ -1026,7 +1044,7 @@ export default function AddJob() {
                         onChange={handleChange}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col >
                       <Form.Check
                         type="checkbox"
                         id="paymentOptions.creditCard"
@@ -1036,7 +1054,7 @@ export default function AddJob() {
                         onChange={handleChange}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col>
                       <Form.Check
                         type="checkbox"
                         id="paymentOptions.netBanking"
@@ -1046,7 +1064,7 @@ export default function AddJob() {
                         onChange={handleChange}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col >
                       <Form.Check
                         type="checkbox"
                         id="paymentOptions.upi"
@@ -1056,7 +1074,7 @@ export default function AddJob() {
                         onChange={handleChange}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col >
                       <Form.Check
                         type="checkbox"
                         id="paymentOptions.wallets"
@@ -1066,7 +1084,7 @@ export default function AddJob() {
                         onChange={handleChange}
                       />
                     </Col>
-                    <Col md={4}>
+                    <Col>
                       <Form.Check
                         type="checkbox"
                         id="paymentOptions.eChallen"
@@ -1093,13 +1111,10 @@ export default function AddJob() {
                       <>
                         {values.selection.map((s, idx) => (
                           <Row key={idx} className="mb-2">
-                            <Col md={9}>
+                            <Col md={10}>
                               <Form.Control name={`selection.${idx}`} value={s} onChange={handleChange} />
                             </Col>
-                            <Col md={3} className="d-flex gap-2">
-                              <Button size="sm" onClick={() => arrayHelpers.push("")}>
-                                + Add
-                              </Button>
+                            <Col md={2} className="d-flex justify-content-center">
                               <Button
                                 size="sm"
                                 variant="light"
@@ -1110,14 +1125,17 @@ export default function AddJob() {
                             </Col>
                           </Row>
                         ))}
+                        <div className="d-flex justify-content-end gap-2 align-items-center mt-2">
+                          <Button size="sm" variant="outline-primary" onClick={() => arrayHelpers.push("")}>
+                            + Add Step
+                          </Button>
+                          <Button size="sm" onClick={() => saveSection("selection", values, setFieldValue)}>
+                            Save Selection
+                          </Button>
+                        </div>
                       </>
                     )}
                   </FieldArray>
-                  <div className="text-end mt-2">
-                    <Button size="sm" onClick={() => saveSection("selection", values, setFieldValue)}>
-                      Save Selection
-                    </Button>
-                  </div>
                 </Card.Body>
               </ComponentCard>
 
@@ -1137,6 +1155,14 @@ export default function AddJob() {
                                 placeholder="Type"
                               />
                             </Col>
+                            <Col md={3}>
+                              <Form.Control
+                                name={`links.${idx}.label`}
+                                value={l.label}
+                                onChange={handleChange}
+                                placeholder="Label"
+                              />
+                            </Col>
                             <Col md={4}>
                               <Form.Control
                                 name={`links.${idx}.url`}
@@ -1146,10 +1172,7 @@ export default function AddJob() {
                                 type="url"
                               />
                             </Col>
-                            <Col md={2} className="d-flex gap-2">
-                              <Button size="sm" onClick={() => arrayHelpers.push({ type: "", label: "", url: "" })}>
-                                +
-                              </Button>
+                            <Col md={2} className="d-flex justify-content-center">
                               <Button
                                 size="sm"
                                 variant="light"
@@ -1160,14 +1183,17 @@ export default function AddJob() {
                             </Col>
                           </Row>
                         ))}
+                        <div className="d-flex justify-content-end gap-2 align-items-center mt-2">
+                          <Button size="sm" variant="outline-primary" onClick={() => arrayHelpers.push({ type: "", label: "", url: "" })}>
+                            + Add Link
+                          </Button>
+                          <Button size="sm" onClick={() => saveSection("links", values, setFieldValue)}>
+                            Save Links
+                          </Button>
+                        </div>
                       </>
                     )}
                   </FieldArray>
-                  <div className="text-end mt-2">
-                    <Button size="sm" onClick={() => saveSection("links", values, setFieldValue)}>
-                      Save Links
-                    </Button>
-                  </div>
                 </Card.Body>
               </ComponentCard>
 

@@ -8,13 +8,14 @@ const authRoutes = require("./routes/authRoutes");
 const protectedRoutes = require("./routes/protectedRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const jobCategoryRoutes = require("./routes/jobCategoryRouters");
+const jobTypeRoutes = require("./routes/jobTypeRoutes");
 
 dotenv.config();
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173', 
+  origin: 'http://localhost:5175', 
   credentials: true,
 }));
 app.use(express.json()); // parse JSON
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", protectedRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/job-categories", jobCategoryRoutes);
+app.use("/api/job-types", jobTypeRoutes);
 
 // Test route
 app.get("/", (req, res) => {

@@ -3,6 +3,8 @@ import { Container } from "react-bootstrap";
 import ExportDataWithButtons from "@/views/tables/data-tables/category-data/";
 import AddCategory from "./components/AddCategory";
 import AddSubCategory from "./components/AddSubCategory";
+import AddJobType from "./components/AddJobType";
+import AddSector from "./components/AddSector"; // <-- import to avoid runtime error when rendering sector tab
 
 const Page = () => {
   const [activeTab, setActiveTab] = React.useState(1);
@@ -13,6 +15,8 @@ const Page = () => {
   const tabs = [
     { key: 1, label: "Category" },
     { key: 2, label: "Sub Category" },
+    { key: 3, label: "Job Type" },
+    { key: 4, label: "Sector" },
   ];
 
   const handleAddNew = () => {
@@ -46,6 +50,24 @@ const Page = () => {
         case 2:
           return (
             <AddSubCategory
+              mode={formMode}
+              data={editData}
+              onCancel={() => setShowForm(false)}
+              onDataChanged={triggerRefresh}
+            />
+          );
+        case 3:
+          return (
+            <AddJobType
+              mode={formMode}
+              data={editData}
+              onCancel={() => setShowForm(false)}
+              onDataChanged={triggerRefresh}
+            />
+          );
+        case 4:
+          return (
+            <AddSector 
               mode={formMode}
               data={editData}
               onCancel={() => setShowForm(false)}
