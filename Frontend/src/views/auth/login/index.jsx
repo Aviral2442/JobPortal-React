@@ -29,7 +29,7 @@ const Page = () => {
         setError("");
         setLoading(true);
         console.log("Submitting login form with data:", formData);
-
+        // console.log("Using base URL:", import.meta.env.VITE_BASE_URL);
         try {
             const res = await axios.post(
                 `${import.meta.env.VITE_BASE_URL}/api/auth/login`,
