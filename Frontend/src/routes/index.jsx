@@ -70,7 +70,7 @@ const categoryRoutes = [
     element:<EditSubCategory/>
   },
   {
-    path: 'admin/job-type/add',
+    path: '/admin/job-type/add',
     element: <AddJobType/>
   },
   {

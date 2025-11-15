@@ -11,6 +11,8 @@ const AddJobType = ({ mode = "add", data = null, onCancel = () => {}, onDataChan
   const [variant, setVariant] = useState("success");
   const [loading, setLoading] = useState(false);
 
+  const baseURL = import.meta.env.VITE_BASE_URL || "http://localhost:5000";
+
   useEffect(() => {
     if (isEditMode) {
       // support different incoming shapes
@@ -34,13 +36,13 @@ const AddJobType = ({ mode = "add", data = null, onCancel = () => {}, onDataChan
     try {
       if (isEditMode) {
         // Attempt update; backend route may vary — adjust if your API uses different path
-        await axios.put(`/job-types/update_job_type/${data._id}`, {
+        await axios.put(`${baseURL}/job-types/update_job_type/${data._id}`, {
           jobType_name: name.trim(),
           jobType_status: status,
         });
         setMessage("Job type updated successfully");
       } else {
-        const res = await axios.post("/job-types/create_job_type", {
+        const res = await axios.post(`${baseURL}/job-types/create_job_type`, {
           jobType_name: name.trim(),
           jobType_status: status,
         });
