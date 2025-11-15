@@ -34,3 +34,19 @@ exports.createJobType = async (req, res) => {
         res.status(500).json({ status: false, message: 'Internal Server Error' });
     }
 };
+
+
+exports.updateJobType = async (req, res) => {
+    try {
+        const { id, jobType_name } = req.body;
+        if (!id || !jobType_name) {
+            return res.status(400).json({ status: false, message: 'Job Type ID and name are required' });
+        }
+        const result = await jobTypeService.updateJobType({ id, jobType_name });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error in updateJobType Controller:', error);
+        res.status(500).json({ status: false, message: 'Internal Server Error' });
+    }
+};
