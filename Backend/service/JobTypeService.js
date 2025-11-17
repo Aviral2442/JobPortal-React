@@ -1,6 +1,7 @@
 const JobType = require('../models/JobType');
 const moment = require('moment');
 
+// Get Job Type List with Filters and Pagination
 exports.getJobTypeList = async (query) => {
     const {
         dateFilter,
@@ -68,6 +69,7 @@ exports.getJobTypeList = async (query) => {
     };
 }
 
+// Create a New Job Type
 exports.createJobType = async (data) => {
     try {
         const newJobType = new JobType({

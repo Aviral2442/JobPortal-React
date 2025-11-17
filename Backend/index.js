@@ -18,6 +18,7 @@ app.use(cors({
   origin: ['http://localhost:5173','https://job-portal-seven-taupe.vercel.app'], 
   credentials: true,
 }));
+
 app.use(express.json()); // parse JSON
 app.use(express.urlencoded({ extended: true })); // parse form data
 
