@@ -11,6 +11,9 @@ const StudentSchema = new mongoose.Schema({
     studentMobileNo: { type: String, required: true, unique: true },
     studentPassword: { type: String, required: true },
     studentJobType: { type: Number, required: true }, // select from the job types table , id will be pass here
+    studentReferralCode: { type: String },
+    studentReferralById: { type: mongoose.Schema.Types.ObjectId, ref: 'student', default: null },
+    studentReferralByCode: { type: String, default: null },
 
     // 0 = not completed, 1 = completed
     profileCompletion: {
