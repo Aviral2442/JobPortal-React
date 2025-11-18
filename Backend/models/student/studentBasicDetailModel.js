@@ -4,32 +4,23 @@ const mongoose = require("mongoose");
 const StudentBasicInfoSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true, index: true },
 
-  firstName: { type: String },
-  middleName: { type: String },
-  lastName: { type: String },
-  fullName: { type: String },
+  studentDOB: { type: Number }, // unix ms
+  studentGender: { type: String, enum: ["male","female","other","prefer_not_to_say"], default: "prefer_not_to_say" },
 
-  dateOfBirth: { type: Number }, // unix ms
-  gender: { type: String, enum: ["male","female","other","prefer_not_to_say"], default: "prefer_not_to_say" },
+  studentAlternateMobileNo: { type: String },
 
-  mobileNumber: { type: String },
-  alternateMobileNumber: { type: String },
-  email: { type: String },
+  studentMaritalStatus: { type: String, enum: ["single","married","other","prefer_not_to_say"], default: "single" },
 
-  profilePhotoUrl: { type: String },
+  studentMotherTongue: { type: String },
+  studentNationality: { type: String },
+  studentCitizenship: { type: String },
 
-  maritalStatus: { type: String, enum: ["single","married","other","prefer_not_to_say"], default: "single" },
-
-  motherTongue: { type: String },
-  nationality: { type: String },
-  citizenship: { type: String },
-
-  createdAt: { type: Number, default: () => Date.now() },
-  updatedAt: { type: Number, default: () => Date.now() }
+  studentCreatedAt: { type: Number, default: () => Date.now() },
+  studentUpdatedAt: { type: Number, default: () => Date.now() }
 });
 
 StudentBasicInfoSchema.pre("save", function(next){
-  this.updatedAt = Date.now();
+  this.studentUpdatedAt = Date.now();
   next();
 });
 
